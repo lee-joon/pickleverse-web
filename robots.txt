@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://lee-joon.github.io/pickleverse-web/sitemap.xml
