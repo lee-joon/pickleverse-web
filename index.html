@@ -3,68 +3,185 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>피클허브 소식 — 전국 피클볼 오픈코트</title>
-    <meta name="description" content="피클볼 오픈코트 일정과 커뮤니티 소식. 피클허브 앱에서 참가 신청까지." />
+    <meta name="theme-color" content="#00361A" />
+    <title>피클허브 커뮤니티 — 뉴스 게시판</title>
+    <meta name="description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트. 익명 자유게시판은 앱에서." />
     <link rel="canonical" href="https://lee-joon.github.io/pickleverse-web/" />
+    <link rel="icon" href="https://lee-joon.github.io/pickleverse-web/assets/logo-128.png" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="피클허브 소식 — 전국 피클볼 오픈코트" />
-    <meta property="og:description" content="피클볼 오픈코트 일정과 커뮤니티 소식. 피클허브 앱에서 참가 신청까지." />
+    <meta property="og:site_name" content="피클허브 커뮤니티" />
+    <meta property="og:title" content="피클허브 커뮤니티 — 뉴스 게시판" />
+    <meta property="og:description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트. 익명 자유게시판은 앱에서." />
     <meta property="og:url" content="https://lee-joon.github.io/pickleverse-web/" />
+    <meta property="og:image" content="https://lee-joon.github.io/pickleverse-web/assets/logo-256.png" />
     <style>
-  :root { color-scheme: light; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
-         "Malgun Gothic", system-ui, sans-serif; color: #1F2421; background: #F8F9FA; }
-  a { color: #00361A; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 20px 64px; }
-  header.site { background: #00361A; color: #fff; }
-  header.site .wrap { padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  header.site a { color: #fff; text-decoration: none; font-weight: 700; font-size: 18px; }
-  .cta { display: inline-block; background: #FBE366; color: #736400; font-weight: 700;
-         padding: 8px 14px; border-radius: 999px; text-decoration: none; font-size: 14px; }
-  h1 { font-size: 26px; line-height: 1.35; margin: 0 0 8px; }
-  .meta { color: #5C6360; font-size: 14px; margin: 0 0 24px; }
-  ul.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
-  ul.list li { background: #fff; border: 1px solid #E2EAE3; border-radius: 14px; }
-  ul.list a { display: block; padding: 16px 18px; text-decoration: none; color: inherit; }
-  ul.list h2 { font-size: 18px; margin: 0 0 6px; }
-  ul.list p { margin: 0; color: #5C6360; font-size: 14px; }
-  article { background: #fff; border: 1px solid #E2EAE3; border-radius: 14px; padding: 22px; }
-  article p { margin: 0 0 14px; }
-  .back { display: inline-block; margin-bottom: 16px; font-size: 14px; text-decoration: none; }
-  footer.site { border-top: 1px solid #E2EAE3; margin-top: 40px; }
-  footer.site .wrap { padding: 20px; color: #5C6360; font-size: 13px; }
-  .empty { background:#fff; border:1px dashed #C1C9BF; border-radius:14px; padding:32px; text-align:center; color:#5C6360; }
+  :root {
+    --brand:#00361A; --brand-soft:#CFEAD6; --accent:#FBE366; --accent-soft:#FDF4C4; --on-accent:#736400;
+    --bg:#F8F9FA; --surface:#FFFFFF; --ink:#1F2421; --sub:#5C6360; --line:#C1C9BF; --line-soft:#E2E6E2;
+    --row-hover:#F1F5F2; --head:#EEF3EF;
+  }
   @media (prefers-color-scheme: dark) {
-    body { background: #101418; color: #F5F7FA; }
-    a { color: #5E9278; }
-    ul.list li, article { background: #171D22; border-color: #303A45; }
-    ul.list p, .meta, footer.site .wrap { color: #C8D0D8; }
-    .empty { background:#171D22; border-color:#303A45; color:#C8D0D8; }
+    :root {
+      --brand:#5E9278; --brand-soft:#0F2416; --accent:#BCA45C; --accent-soft:#2E2A18; --on-accent:#F1E4B3;
+      --bg:#101418; --surface:#171D22; --ink:#F5F7FA; --sub:#C8D0D8; --line:#303A45; --line-soft:#232B33;
+      --row-hover:#1D242B; --head:#1B2228;
+    }
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:13px/1.55 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif; }
+  a { color:inherit; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  a:focus-visible, .btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 12px; }
+
+  /* ── 상단 바 (피클허브 브랜드) ── */
+  .top { background:#00361A; color:#fff; }
+  .top .wrap { height:52px; display:flex; align-items:center; gap:10px; }
+  .top img { width:28px; height:28px; border-radius:7px; display:block; }
+  .top .brand { font-weight:800; font-size:17px; letter-spacing:-0.2px; }
+  .top .brand small { font-weight:500; opacity:.75; margin-left:6px; font-size:12px; }
+  .top .cta { margin-left:auto; background:#FBE366; color:#736400; font-weight:800; font-size:12px;
+              padding:7px 12px; border-radius:6px; white-space:nowrap; }
+  .top .cta:hover { text-decoration:none; filter:brightness(.96); }
+
+  /* ── 갤러리 헤더 + 탭 ── */
+  .gall { background:var(--surface); border-bottom:1px solid var(--line); }
+  .gall .wrap { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding-top:14px; }
+  .gall h1 { margin:0 0 10px; font-size:19px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .gall h1::before { content:""; width:6px; height:18px; background:var(--brand); border-radius:2px; }
+  .tabs { display:flex; gap:2px; }
+  .tabs a { display:block; padding:8px 14px; font-weight:700; font-size:13px; color:var(--sub);
+            border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }
+  .tabs a.on { color:var(--brand); background:var(--bg); border-color:var(--line); margin-bottom:-1px; }
+  .tabs a .lock { font-size:10px; margin-left:4px; opacity:.7; }
+
+  /* ── 목록 툴바 ── */
+  .toolbar { display:flex; align-items:center; justify-content:space-between; padding:10px 0 6px; font-size:12px; color:var(--sub); }
+  .toolbar b { color:var(--ink); }
+  .btn { display:inline-block; padding:6px 11px; border-radius:4px; font-size:12px; font-weight:700; border:1px solid var(--line); background:var(--surface); color:var(--ink); }
+  .btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
+  .btn:hover { text-decoration:none; filter:brightness(.97); }
+
+  /* ── 게시판 표 (디시 gall_list 밀도) ── */
+  table.list { width:100%; table-layout:fixed; border-collapse:collapse; border-top:2px solid var(--brand); border-bottom:1px solid var(--line); background:var(--surface); }
+  table.list th { background:var(--head); color:var(--sub); font-weight:700; font-size:12px; padding:8px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.list td { padding:7px 6px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+  table.list tr:hover td { background:var(--row-hover); }
+  table.list .num, table.list .date, table.list .cnt { font-variant-numeric:tabular-nums; }
+  table.list .num { width:60px; text-align:center; color:var(--sub); font-size:12px; }
+  table.list .tit { text-align:left; }
+  table.list .tit { overflow:hidden; }
+  table.list .tit a { display:inline-block; max-width:calc(100% - 34px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
+  table.list .tit .cmt { color:var(--brand); font-weight:700; font-size:12px; margin-left:4px; }
+  table.list .who { width:96px; text-align:center; color:var(--sub); font-size:12px; white-space:nowrap; }
+  table.list .date { width:74px; text-align:center; color:var(--sub); font-size:12px; white-space:nowrap; }
+  table.list .cnt { width:52px; text-align:center; color:var(--sub); font-size:12px; }
+  table.list tr.notice td { background:var(--accent-soft); }
+  table.list tr.notice .num { color:var(--on-accent); font-weight:800; }
+  table.list tr.notice .tit a { font-weight:700; }
+  table.list tr.empty td { text-align:center; padding:48px 6px; color:var(--sub); }
+
+  /* ── 페이지 번호 ── */
+  .paging { display:flex; justify-content:center; gap:4px; padding:16px 0 8px; font-size:12px; }
+  .paging a, .paging span { min-width:28px; height:28px; line-height:26px; text-align:center; padding:0 6px; border:1px solid var(--line-soft); border-radius:4px; color:var(--sub); background:var(--surface); }
+  .paging .cur { border-color:var(--brand); color:var(--brand); font-weight:800; }
+  .paging a:hover { text-decoration:none; border-color:var(--line); color:var(--ink); }
+
+  /* ── 글 보기 ── */
+  .view { background:var(--surface); border-top:2px solid var(--brand); border-bottom:1px solid var(--line); margin-top:10px; }
+  .view .head { padding:14px 14px 10px; border-bottom:1px solid var(--line-soft); }
+  .view .head .badge { display:inline-block; font-size:11px; font-weight:800; color:var(--on-accent); background:var(--accent-soft); padding:2px 7px; border-radius:3px; margin-right:6px; vertical-align:2px; }
+  .view h2 { margin:0 0 6px; font-size:18px; line-height:1.4; text-wrap:balance; }
+  .view .meta { display:flex; flex-wrap:wrap; gap:0 12px; color:var(--sub); font-size:12px; }
+  .view .meta b { color:var(--ink); font-weight:600; }
+  .view .body { padding:18px 14px 22px; font-size:15px; line-height:1.8; }
+  .view .body p { margin:0 0 14px; }
+  .view .link { padding:0 14px 16px; font-size:13px; }
+  .view .link a { color:var(--brand); font-weight:700; }
+  .view .foot { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-top:1px solid var(--line-soft); }
+
+  /* ── 댓글 영역: 웹은 읽기 전용, 댓글은 앱에서 ── */
+  .cmts { margin-top:10px; background:var(--surface); border:1px solid var(--line); }
+  .cmts .h { padding:10px 14px; border-bottom:1px solid var(--line-soft); font-weight:700; font-size:13px; }
+  .cmts .h b { color:var(--brand); }
+  .cmts .lock { padding:22px 14px; text-align:center; color:var(--sub); font-size:13px; }
+  .cmts .lock a { display:inline-block; margin-top:10px; }
+
+  /* ── 하단 앱 배너 + 푸터 ── */
+  .promo { margin-top:16px; background:var(--brand-soft); border:1px solid var(--line-soft); border-radius:8px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .promo b { color:var(--brand); font-size:14px; }
+  .promo p { margin:2px 0 0; color:var(--sub); font-size:12px; }
+  .promo .stores { display:flex; gap:6px; }
+  footer { margin-top:28px; padding:18px 0 40px; border-top:1px solid var(--line); color:var(--sub); font-size:12px; }
+  footer .wrap { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
+  footer a { color:var(--sub); }
+
+  @media (max-width:640px) {
+    .top .brand small { display:none; }
+    table.list .who, table.list th.who { display:none; }
+    table.list .num { width:44px; }
+    table.list .date { width:52px; }
+    table.list .cnt { width:40px; }
+    table.list td, table.list th { padding-left:4px; padding-right:4px; }
+    .gall .wrap { flex-direction:column; align-items:stretch; gap:0; }
+    .tabs a { flex:1; text-align:center; }
+    .view h2 { font-size:17px; }
   }
 </style>
   </head>
   <body>
-    <header class="site">
+    <div class="top">
       <div class="wrap">
-        <a href="https://lee-joon.github.io/pickleverse-web/">피클허브 소식</a>
-        <a class="cta" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">앱에서 보기</a>
+        <a href="https://lee-joon.github.io/pickleverse-web/" style="display:flex;align-items:center;gap:10px">
+          <img src="https://lee-joon.github.io/pickleverse-web/assets/logo-128.png" alt="" width="28" height="28" />
+          <span class="brand">피클허브<small>커뮤니티</small></span>
+        </a>
+        <a class="cta" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">앱 다운로드</a>
       </div>
-    </header>
-    <main class="wrap">
-      <h1>피클허브 소식</h1>
-      <p class="meta">피클볼 오픈코트와 커뮤니티 소식을 전합니다.</p>
-      <div class="empty">아직 공개된 소식이 없습니다. 앱에서 커뮤니티를 먼저 만나보세요.</div>
-    </main>
-    <footer class="site">
+    </div>
+    <div class="gall">
       <div class="wrap">
-        <p>피클허브 — 전국 피클볼 오픈코트 일정을 한곳에서.</p>
-        <p>
-          <a href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store</a> ·
-          <a href="https://play.google.com/store/apps/details?id=com.pickleverse.hub">Google Play</a> ·
-          <a href="https://lee-joon.github.io/pickleverse-legal/terms.html">이용약관</a> ·
-          <a href="https://lee-joon.github.io/pickleverse-legal/privacy.html">개인정보 처리방침</a>
-        </p>
+        <h1>뉴스 게시판</h1>
+        <nav class="tabs">
+          <a class="on" href="https://lee-joon.github.io/pickleverse-web/">뉴스 게시판</a>
+          <a href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062" title="자유게시판은 앱에서 이용할 수 있습니다">자유게시판<span class="lock">앱 전용</span></a>
+        </nav>
+      </div>
+    </div>
+    <main class="wrap">
+      <div class="toolbar">
+        <span>전체글 <b>0</b></span>
+        <a class="btn primary" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062" title="글쓰기는 앱에서">글쓰기</a>
+      </div>
+      <table class="list">
+        <thead><tr>
+          <th class="num">번호</th><th class="tit">제목</th><th class="who">글쓴이</th><th class="date">작성일</th><th class="cnt">댓글</th>
+        </tr></thead>
+        <tbody>
+        <tr class="empty"><td colspan="5">게시물이 없습니다.<br /><small>운영자가 웹 공개를 켠 뉴스가 여기에 표시됩니다.</small></td></tr>
+        </tbody>
+      </table>
+
+      <div class="promo">
+        <div>
+          <b>자유게시판·댓글은 앱에서</b>
+          <p>익명 자유게시판, 오픈코트 참가 신청, 클럽 찾기는 피클허브 앱에서 이용할 수 있습니다.</p>
+        </div>
+        <div class="stores">
+          <a class="btn" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store</a>
+          <a class="btn" href="https://play.google.com/store/apps/details?id=com.pickleverse.hub">Google Play</a>
+        </div>
+      </div>
+    </main>
+    <footer>
+      <div class="wrap">
+        <span>피클허브 — 전국 피클볼 오픈코트 일정을 한곳에서.</span>
+        <a href="https://lee-joon.github.io/pickleverse-legal/terms.html">이용약관</a>
+        <a href="https://lee-joon.github.io/pickleverse-legal/privacy.html">개인정보 처리방침</a>
+        <a href="https://lee-joon.github.io/pickleverse-legal/youth.html">청소년 보호정책</a>
       </div>
     </footer>
   </body>
