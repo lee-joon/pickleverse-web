@@ -15,6 +15,9 @@
     <meta property="og:url" content="https://lee-joon.github.io/pickleverse-web/" />
     <meta property="og:image" content="https://lee-joon.github.io/pickleverse-web/assets/logo-256.png" />
     <meta name="robots" content="noindex" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" />
     <style>
   :root {
     --brand:#00361A; --brand-soft:#CFEAD6; --accent:#FBE366; --accent-soft:#FDF4C4; --on-accent:#736400;
@@ -31,36 +34,39 @@
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
   body { margin:0; background:var(--bg); color:var(--ink);
-         font:13px/1.55 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif; }
+         font:13px/1.55 "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+         font-variant-numeric:tabular-nums; }
   a { color:inherit; text-decoration:none; }
   a:hover { text-decoration:underline; }
   a:focus-visible, .btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
   @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
   .wrap { max-width:1040px; margin:0 auto; padding:0 12px; }
 
-  /* ── 상단 바 (피클허브 브랜드) ── */
-  .top { background:#00361A; color:#fff; }
-  .top .wrap { height:52px; display:flex; align-items:center; gap:10px; }
+  /* ── 마스트헤드 (피클허브 브랜드) — 기억에 남는 요소는 오른쪽의 피클볼 구멍 패턴 하나 ── */
+  .top { background:#00361A; color:#fff; position:relative; overflow:hidden; }
+  .top .wrap { height:56px; display:flex; align-items:center; gap:10px; position:relative; }
   .top img { width:28px; height:28px; border-radius:7px; display:block; }
-  .top .brand { font-weight:800; font-size:17px; letter-spacing:-0.2px; }
-  .top .brand small { font-weight:500; opacity:.75; margin-left:6px; font-size:12px; }
+  .top .brand { font-weight:700; font-size:18px; letter-spacing:-0.3px; }
+  .top .brand small { font-weight:400; opacity:.72; margin-left:7px; font-size:12px; letter-spacing:0; }
+  .top .ball { position:absolute; right:-24px; top:-70px; width:200px; height:200px; pointer-events:none; }
+  .top .wrap > * { position:relative; z-index:1; }
   .top .cta { margin-left:auto; background:#FBE366; color:#736400; font-weight:800; font-size:12px;
               padding:7px 12px; border-radius:6px; white-space:nowrap; }
   .top .cta:hover { text-decoration:none; filter:brightness(.96); }
 
-  /* ── 갤러리 헤더 + 탭 ── */
+  /* ── 게시판 헤더 + 탭 — 밑줄 하나로 잇는다(폴더 탭·액센트 바 없음) ── */
   .gall { background:var(--surface); border-bottom:1px solid var(--line); }
-  .gall .wrap { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding-top:14px; }
-  .gall h1 { margin:0 0 10px; font-size:19px; font-weight:800; display:flex; align-items:center; gap:8px; }
-  .gall h1::before { content:""; width:6px; height:18px; background:var(--brand); border-radius:2px; }
-  .tabs { display:flex; gap:2px; }
-  .tabs a { display:block; padding:8px 14px; font-weight:700; font-size:13px; color:var(--sub);
-            border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }
-  .tabs a.on { color:var(--brand); background:var(--bg); border-color:var(--line); margin-bottom:-1px; }
+  .gall .wrap { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding-top:16px; }
+  .gall h1 { margin:0 0 12px; font-size:21px; font-weight:700; letter-spacing:-0.4px; line-height:1.2; }
+  .tabs { display:flex; gap:4px; }
+  .tabs a { display:block; padding:8px 12px 10px; font-weight:500; font-size:13px; color:var(--sub); border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs a.on { color:var(--brand); font-weight:700; border-bottom-color:var(--brand); }
+  .tabs a:hover { text-decoration:none; color:var(--ink); }
 
   /* ── 목록 툴바 ── */
   .toolbar { display:flex; align-items:center; justify-content:space-between; padding:10px 0 6px; font-size:12px; color:var(--sub); }
   .toolbar b { color:var(--ink); }
+  .toolbar .stat + .stat { margin-left:12px; }
   .btn { display:inline-block; padding:6px 11px; border-radius:4px; font-size:12px; font-weight:700; border:1px solid var(--line); background:var(--surface); color:var(--ink); }
   .btn.primary { background:var(--brand); border-color:var(--brand); color:#fff; }
   .btn:hover { text-decoration:none; filter:brightness(.97); }
@@ -82,7 +88,8 @@
   table.list tr.notice td { background:var(--accent-soft); }
   table.list tr.notice .num { color:var(--on-accent); font-weight:800; }
   table.list tr.notice .tit a { font-weight:700; }
-  table.list tr.empty td { text-align:center; padding:48px 6px; color:var(--sub); }
+  table.list tr.empty td { text-align:center; padding:44px 6px 40px; color:var(--sub); line-height:1.7; }
+  table.list tr.empty .btn { margin-top:10px; }
 
   /* ── 페이지 번호 ── */
   .paging { display:flex; justify-content:center; gap:4px; padding:16px 0 8px; font-size:12px; }
@@ -94,7 +101,7 @@
   .view { background:var(--surface); border-top:2px solid var(--brand); border-bottom:1px solid var(--line); margin-top:10px; }
   .view .head { padding:14px 14px 10px; border-bottom:1px solid var(--line-soft); }
   .view .head .badge { display:inline-block; font-size:11px; font-weight:800; color:var(--on-accent); background:var(--accent-soft); padding:2px 7px; border-radius:3px; margin-right:6px; vertical-align:2px; }
-  .view h2 { margin:0 0 6px; font-size:18px; line-height:1.4; text-wrap:balance; }
+  .view h2 { margin:0 0 6px; font-size:19px; font-weight:700; line-height:1.4; letter-spacing:-0.2px; text-wrap:balance; }
   .view .meta { display:flex; flex-wrap:wrap; gap:0 12px; color:var(--sub); font-size:12px; }
   .view .meta b { color:var(--ink); font-weight:600; }
   .view .body { padding:18px 14px 22px; font-size:15px; line-height:1.8; }
@@ -121,7 +128,7 @@
 
   /* ── 하단 앱 배너 + 푸터 ── */
   .promo { margin-top:16px; background:var(--brand-soft); border:1px solid var(--line-soft); border-radius:8px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-  .promo b { color:var(--brand); font-size:14px; }
+  .promo b { color:var(--brand); font-size:14px; font-weight:700; }
   .promo p { margin:2px 0 0; color:var(--sub); font-size:12px; }
   .promo .stores { display:flex; gap:6px; }
   footer { margin-top:28px; padding:18px 0 40px; border-top:1px solid var(--line); color:var(--sub); font-size:12px; }
@@ -166,6 +173,7 @@
 
   @media (max-width:640px) {
     .top .brand small { display:none; }
+    .top .ball { width:140px; height:140px; right:-40px; top:-50px; }
     table.list .who, table.list th.who { display:none; }
     table.list .num { width:44px; }
     table.list .date { width:52px; }
@@ -184,6 +192,7 @@
   </head>
   <body>
     <div class="top">
+      <svg class="ball" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="98" fill="#0F4D2B"/><g fill="#00361A"><circle cx="100.0" cy="100.0" r="6.5"/><circle cx="126.0" cy="100.0" r="6.5"/><circle cx="113.0" cy="122.5" r="6.5"/><circle cx="87.0" cy="122.5" r="6.5"/><circle cx="74.0" cy="100.0" r="6.5"/><circle cx="87.0" cy="77.5" r="6.5"/><circle cx="113.0" cy="77.5" r="6.5"/><circle cx="150.3" cy="113.4" r="6.5"/><circle cx="136.8" cy="136.7" r="6.5"/><circle cx="113.5" cy="150.2" r="6.5"/><circle cx="86.6" cy="150.3" r="6.5"/><circle cx="63.3" cy="136.8" r="6.5"/><circle cx="49.8" cy="113.5" r="6.5"/><circle cx="49.7" cy="86.6" r="6.5"/><circle cx="63.2" cy="63.3" r="6.5"/><circle cx="86.5" cy="49.8" r="6.5"/><circle cx="113.4" cy="49.7" r="6.5"/><circle cx="136.7" cy="63.2" r="6.5"/><circle cx="150.2" cy="86.5" r="6.5"/><circle cx="178.0" cy="100.0" r="6.5"/><circle cx="173.3" cy="126.7" r="6.5"/><circle cx="159.8" cy="150.1" r="6.5"/><circle cx="139.0" cy="167.5" r="6.5"/><circle cx="113.5" cy="176.8" r="6.5"/><circle cx="86.5" cy="176.8" r="6.5"/><circle cx="61.0" cy="167.5" r="6.5"/><circle cx="40.2" cy="150.1" r="6.5"/><circle cx="26.7" cy="126.7" r="6.5"/><circle cx="22.0" cy="100.0" r="6.5"/><circle cx="26.7" cy="73.3" r="6.5"/><circle cx="40.2" cy="49.9" r="6.5"/><circle cx="61.0" cy="32.5" r="6.5"/><circle cx="86.5" cy="23.2" r="6.5"/><circle cx="113.5" cy="23.2" r="6.5"/><circle cx="139.0" cy="32.5" r="6.5"/><circle cx="159.8" cy="49.9" r="6.5"/><circle cx="173.3" cy="73.3" r="6.5"/></g></svg>
       <div class="wrap">
         <a href="https://lee-joon.github.io/pickleverse-web/" style="display:flex;align-items:center;gap:10px">
           <img src="https://lee-joon.github.io/pickleverse-web/assets/logo-128.png" alt="" width="28" height="28" />
@@ -211,8 +220,8 @@
       </section>
       <div class="promo">
         <div>
-          <b>글쓰기·댓글은 앱에서</b>
-          <p>익명 자유게시판 참여, 오픈코트 참가 신청, 클럽 찾기는 피클허브 앱에서 할 수 있습니다.</p>
+          <b>피클허브 앱에서 더 할 수 있는 것</b>
+          <p>오픈코트 일정 확인과 참가 신청, 클럽 찾기, 댓글 숨기기와 신고는 앱에서 할 수 있습니다.</p>
         </div>
         <div class="stores">
           <a class="btn" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store</a>

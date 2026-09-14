@@ -397,8 +397,11 @@
   sb.auth.getSession().then(function (r) {
     session = (r.data && r.data.session) || null;
     renderAccount();
-    var compose = $('[data-compose-slot]');
-    if (compose && PV.board === 'free') { compose.outerHTML = '<button class="btn primary" data-pv="compose">글쓰기</button>'; }
+    if (PV.board === 'free') {
+      document.querySelectorAll('[data-compose-slot]').forEach(function (a) {
+        a.outerHTML = '<button class="btn primary" data-pv="compose">' + esc(a.textContent.trim() || '글쓰기') + '</button>';
+      });
+    }
     refreshList();
     if (postId) { renderCommentForm(); loadPost(); }
   });
