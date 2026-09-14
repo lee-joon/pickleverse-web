@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#00361A" />
-    <title>피클허브 커뮤니티 — 자유게시판</title>
-    <meta name="description" content="피클볼 이야기를 익명으로 나누는 자유게시판. 글쓰기와 댓글은 피클허브 앱에서." />
-    <link rel="canonical" href="https://lee-joon.github.io/pickleverse-web/free/" />
+    <title>뉴스 게시판 — 피클허브 커뮤니티</title>
+    <meta name="description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트." />
+    <link rel="canonical" href="https://lee-joon.github.io/pickleverse-web/" />
     <link rel="icon" href="https://lee-joon.github.io/pickleverse-web/assets/logo-128.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="피클허브 커뮤니티" />
-    <meta property="og:title" content="피클허브 커뮤니티 — 자유게시판" />
-    <meta property="og:description" content="피클볼 이야기를 익명으로 나누는 자유게시판. 글쓰기와 댓글은 피클허브 앱에서." />
-    <meta property="og:url" content="https://lee-joon.github.io/pickleverse-web/free/" />
+    <meta property="og:title" content="뉴스 게시판 — 피클허브 커뮤니티" />
+    <meta property="og:description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트." />
+    <meta property="og:url" content="https://lee-joon.github.io/pickleverse-web/" />
     <meta property="og:image" content="https://lee-joon.github.io/pickleverse-web/assets/logo-256.png" />
-    
+    <meta name="robots" content="noindex" />
     <style>
   :root {
     --brand:#00361A; --brand-soft:#CFEAD6; --accent:#FBE366; --accent-soft:#FDF4C4; --on-accent:#736400;
@@ -178,7 +178,7 @@
     .cmts .txt { grid-column:1 / -1; }
   }
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://lee-joon.github.io/pickleverse-web","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":false,"page":1,"staticIds":[],"total":0};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://lee-joon.github.io/pickleverse-web","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":true,"page":1,"staticIds":[],"total":0};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
     <script src="https://lee-joon.github.io/pickleverse-web/assets/app.js" defer></script>
   </head>
@@ -195,27 +195,20 @@
     </div>
     <div class="gall">
       <div class="wrap">
-        <h1>자유게시판</h1>
+        <h1>뉴스 게시판</h1>
         <nav class="tabs">
-          <a href="https://lee-joon.github.io/pickleverse-web/">뉴스 게시판</a>
-          <a class="on" href="https://lee-joon.github.io/pickleverse-web/free/">자유게시판</a>
+          <a class="on" href="https://lee-joon.github.io/pickleverse-web/">뉴스 게시판</a>
+          <a href="https://lee-joon.github.io/pickleverse-web/free/">자유게시판</a>
         </nav>
       </div>
     </div>
     <main class="wrap">
-      <div class="toolbar">
-        <span>전체글 <b id="pv-total">0</b></span>
-        <a class="btn primary" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062" data-compose-slot title="로그인하면 여기서 바로 쓸 수 있습니다">글쓰기</a>
-      </div>
-      <table class="list">
-        <thead><tr>
-          <th class="num">번호</th><th class="tit">제목</th><th class="who">글쓴이</th><th class="date">작성일</th><th class="cnt">댓글</th>
-        </tr></thead>
-        <tbody id="pv-list">
-        <tr class="empty"><td colspan="5">게시물이 없습니다.<br /><small>앱에서 올린 자유게시판 글이 여기에 표시됩니다.</small></td></tr>
-        </tbody>
-      </table>
-
+      <article class="view" id="pv-article"><div class="body"><p>불러오는 중…</p></div></article>
+      <section class="cmts">
+        <div class="h">댓글 <b id="pv-ccount">0</b></div>
+        <div id="pv-comments"></div>
+        <div class="lock" id="pv-cform-slot">댓글을 쓰려면 로그인이 필요합니다.<a class="btn primary" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">앱에서 댓글 쓰기</a></div>
+      </section>
       <div class="promo">
         <div>
           <b>글쓰기·댓글은 앱에서</b>
