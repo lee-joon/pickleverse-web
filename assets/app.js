@@ -21,6 +21,20 @@
   var sb = window.supabase.createClient(PV.url, PV.key, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
   });
+  /* 편집기(editor.js) 등 다른 스크립트가 쓰는 최소 API — 세션·로그인·프로필 게이트·에러 문장. */
+  var authListeners = [], readyResolve;
+  var App = {
+    sb: sb,
+    get session() { return session; },
+    ready: new Promise(function (res) { readyResolve = res; }),
+    onAuth: function (cb) { authListeners.push(cb); },
+    openAuth: function (m) { openAuth(m); },
+    openProfile: function (cb) { openProfile(cb); },
+    checkProfile: function () { return checkProfile(); },
+    requireMember: function (cb) { requireMember(cb); },
+    msg: function (e) { return msg(e); },
+  };
+  window.PVApp = App;
 
   /* ── 유틸 ─────────────────────────────────────────────────────────────── */
   function esc(s) {
@@ -71,6 +85,11 @@
     ['Community write suspended', '커뮤니티 작성이 정지된 계정입니다.'],
     ['Not authenticated', '로그인이 필요합니다.'],
     ['Not authorized', '뉴스 게시판은 운영자만 쓸 수 있습니다. 자유게시판에 글을 남겨 주세요.'],
+    ['Invalid rich body', '본문 서식에 허용되지 않은 내용이 있습니다. 다시 시도해 주세요.'],
+    ['Invalid image path', '사진 정보가 올바르지 않습니다. 사진을 다시 넣어 주세요.'],
+    ['Too many images', '사진은 글 하나에 10장까지 넣을 수 있습니다.'],
+    ['Payload too large', '사진 용량이 너무 큽니다.'],
+    ['row-level security', '업로드 권한이 없습니다. 로그인 상태를 확인해 주세요.'],
     ['Post not found', '글을 찾을 수 없습니다. 삭제되었을 수 있습니다.'],
     ['Comment not found', '댓글을 찾을 수 없습니다.'],
     ['Invalid real_name length', '이름은 2~40자여야 합니다.'],
@@ -237,42 +256,6 @@
     checkProfile().then(function (ok) { if (ok) cb(); else openProfile(cb); });
   }
 
-  /* ── 글쓰기 — 자유게시판은 회원 누구나, 뉴스는 운영자(서버 is_platform_admin 이 판정) ── */
-  function openCompose() {
-    var isNews = PV.board === 'news';
-    var d = dialog(
-      '<button class="x" data-x aria-label="닫기">×</button>' +
-      (isNews
-        ? '<h3>뉴스 글쓰기</h3><p class="pv-note">운영자 계정만 등록할 수 있습니다. "웹에 공개"를 켜면 이 사이트에도 바로 실립니다.</p>'
-        : '<h3>자유게시판 글쓰기</h3><p class="pv-note">익명으로 올라갑니다. 같은 글 안에서만 같은 번호로 보입니다. 글과 댓글은 이 웹사이트에도 익명 그대로 공개됩니다.</p>') +
-      '<form class="pv-form" id="pv-compose">' +
-        '<label>제목<input name="title" type="text" maxlength="100" required /></label>' +
-        '<label>내용<textarea name="body" rows="10" maxlength="5000" required></textarea></label>' +
-        (isNews
-          ? '<label>관련 링크 (선택)<input name="link" type="url" placeholder="https://" /></label>' +
-            '<label class="pv-check"><input type="checkbox" name="web" checked /> 웹에 공개</label>'
-          : '') +
-        '<p class="pv-err" hidden></p>' +
-        '<button type="submit" class="btn primary">등록</button>' +
-      '</form>'
-    );
-    var form = $('#pv-compose', d);
-    form.addEventListener('submit', function (ev) {
-      ev.preventDefault(); setErr(d, ''); busy(form, true);
-      var link = isNews && form.link.value.trim() ? form.link.value.trim() : null;
-      sb.rpc('hub_create_community_post', {
-        p_board_kind: PV.board, p_title: form.title.value.trim(), p_body: form.body.value.trim(), p_image_paths: [], p_link_url: link,
-      }).then(function (r) {
-        if (r.error) { busy(form, false); setErr(d, msg(r.error)); return; }
-        var id = r.data && r.data.id;
-        var next = isNews && form.web.checked
-          ? sb.rpc('hub_set_news_web_publish', { p_post_id: id, p_publish: true })
-          : Promise.resolve({});
-        return next.then(function () { location.href = viewUrl + '?id=' + encodeURIComponent(id); });
-      });
-    });
-  }
-
   /* ── 목록 페이지: 빌드 이후 올라온 글을 위에 얹고 댓글 수를 갱신 ────────── */
   function refreshList() {
     var tbody = $('#pv-list'); if (!tbody || PV.page !== 1) return;
@@ -353,6 +336,14 @@
       });
     });
   }
+  function richBody(p) {
+    var R = window.PVRich;
+    if (R && p.body_rich) {
+      var doc = R.sanitizeRich(p.body_rich, Array.isArray(p.image_paths) ? p.image_paths : []);
+      if (doc && doc.blocks.length) return R.renderRichHtml(doc, PV.url);
+    }
+    return body2html(p.body);
+  }
   function renderArticle(p) {
     var art = $('#pv-article'); if (!art) return;
     document.title = p.title + ' — ' + (PV.board === 'news' ? '뉴스 게시판' : '자유게시판') + ' — 피클허브 커뮤니티';
@@ -361,7 +352,7 @@
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
         '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b></span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '<span>댓글 <b id="pv-mcount">' + (p.comment_count || 0) + '</b></span></div></div>' +
-      '<div class="body">' + body2html(p.body) + '</div>' +
+      '<div class="body rich">' + richBody(p) + '</div>' +
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';
   }
@@ -389,7 +380,6 @@
     if (t.dataset.pv === 'login') openAuth('login');
     else if (t.dataset.pv === 'signup') openAuth('signup');
     else if (t.dataset.pv === 'logout') sb.auth.signOut({ scope: 'local' });
-    else if (t.dataset.pv === 'compose') { ev.preventDefault(); requireMember(openCompose); }
     else if (t.dataset.delComment) {
       if (!confirm('이 댓글을 삭제할까요?')) return;
       sb.rpc('hub_delete_community_comment', { p_comment_id: t.dataset.delComment }).then(function (r) { if (r.error) alert(msg(r.error)); else loadPost(); });
@@ -421,6 +411,7 @@
   sb.auth.onAuthStateChange(function (event, s) {
     session = s || null; profileOk = null; if (!session) me = null;
     renderAccount();
+    authListeners.forEach(function (cb) { try { cb(event); } catch (e) {} });
     if (event === 'PASSWORD_RECOVERY') openNewPassword();
     if (event === 'SIGNED_IN') { checkProfile().then(function (ok) { if (!ok) openProfile(); }); }
     if (postId) { renderCommentForm(); loadPost(); }
@@ -429,9 +420,7 @@
     session = (r.data && r.data.session) || null;
     renderAccount();
     if (session) checkProfile();
-    document.querySelectorAll('[data-compose-slot]').forEach(function (a) {
-      a.outerHTML = '<button class="btn primary" data-pv="compose">' + esc(a.textContent.trim() || '글쓰기') + '</button>';
-    });
+    readyResolve();
     refreshList();
     if (postId) { renderCommentForm(); loadPost(); }
   });

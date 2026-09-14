@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#00361A" />
-    <title>피클허브 커뮤니티 — 뉴스 게시판</title>
+    <title>글쓰기 — 뉴스 게시판 — 피클허브 커뮤니티</title>
     <meta name="description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트." />
     <link rel="canonical" href="https://lee-joon.github.io/pickleverse-web/" />
     <link rel="icon" href="https://lee-joon.github.io/pickleverse-web/assets/logo-128.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="피클허브 커뮤니티" />
-    <meta property="og:title" content="피클허브 커뮤니티 — 뉴스 게시판" />
+    <meta property="og:title" content="글쓰기 — 뉴스 게시판 — 피클허브 커뮤니티" />
     <meta property="og:description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트." />
     <meta property="og:url" content="https://lee-joon.github.io/pickleverse-web/" />
     <meta property="og:image" content="https://lee-joon.github.io/pickleverse-web/assets/logo-256.png" />
-    
+    <meta name="robots" content="noindex" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" />
@@ -251,11 +251,11 @@
     .paging a, .paging span { min-width:40px; height:40px; line-height:38px; }
   }
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://lee-joon.github.io/pickleverse-web","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":false,"page":1,"staticIds":[],"total":0};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://lee-joon.github.io/pickleverse-web","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":false,"page":1,"staticIds":[],"total":0,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
     <script type="module" src="https://lee-joon.github.io/pickleverse-web/assets/rich.mjs?v=17950c9994"></script>
     <script src="https://lee-joon.github.io/pickleverse-web/assets/app.js?v=17950c9994" defer></script>
-    
+    <script src="https://lee-joon.github.io/pickleverse-web/assets/editor.js?v=17950c9994" defer></script>
   </head>
   <body>
     <div class="top">
@@ -279,19 +279,44 @@
       </div>
     </div>
     <main class="wrap">
-      <div class="toolbar">
-        <span><span class="stat">전체글 <b id="pv-total">0</b></span></span>
-        <a class="btn primary" href="https://lee-joon.github.io/pickleverse-web/write.html" title="뉴스는 운영자 계정으로 로그인해 씁니다">글쓰기</a>
-      </div>
-      <table class="list">
-        <thead><tr>
-          <th class="num">번호</th><th class="tit">제목</th><th class="who">글쓴이</th><th class="date">작성일</th><th class="cnt">댓글</th>
-        </tr></thead>
-        <tbody id="pv-list">
-        <tr class="empty"><td colspan="5">아직 글이 없습니다.<br /><small>운영자가 웹 공개를 켠 뉴스가 여기에 표시됩니다.</small></td></tr>
-        </tbody>
-      </table>
-
+      <section class="ed" aria-label="글쓰기">
+        <div class="ed-gate" id="ed-gate">
+          로그인하면 바로 글을 쓸 수 있습니다.<br />뉴스는 운영자 계정만 등록할 수 있습니다.
+          <br /><button type="button" class="btn primary" id="ed-gate-login">로그인</button>
+        </div>
+        <div id="ed-form" hidden>
+          <div class="row"><input type="text" id="ed-title" maxlength="100" placeholder="제목" autocomplete="off" /></div>
+          <div class="ed-bar" role="toolbar" aria-label="서식">
+            <button type="button" data-cmd="bold" title="굵게"><b>굵게</b></button><button type="button" data-cmd="italic" title="기울임"><i>기울임</i></button><button type="button" data-cmd="underline" title="밑줄"><u>밑줄</u></button>
+            <span class="sep"></span>
+            <span class="lbl">크기</span><button type="button" data-cmd="fontSize" data-val="sm" title="작은 글자">작게</button><button type="button" data-cmd="fontSize" data-val="md" title="보통 글자">보통</button><button type="button" data-cmd="fontSize" data-val="lg" title="큰 글자">크게</button><button type="button" data-cmd="fontSize" data-val="xl" title="아주 큰 글자">아주 크게</button>
+            <span class="sep"></span>
+            <span class="lbl">색</span><input type="color" id="ed-color" value="#00361a" title="글자 색" />
+            <span class="sep"></span>
+            <button type="button" data-cmd="justifyLeft" title="왼쪽 정렬">왼쪽</button><button type="button" data-cmd="justifyCenter" title="가운데 정렬">가운데</button><button type="button" data-cmd="justifyRight" title="오른쪽 정렬">오른쪽</button>
+            <span class="sep"></span>
+            <button type="button" id="ed-add-image" title="사진 넣기 (20MB 이하, 최대 10장)">사진</button>
+            <input type="file" id="ed-file" accept="image/*" multiple hidden />
+          </div>
+          <div class="ed-imgbar" id="ed-imgbar" hidden>
+            <span class="lbl">사진</span>
+            <button type="button" data-img="size" data-val="sm">작게</button><button type="button" data-img="size" data-val="md">보통</button><button type="button" data-img="size" data-val="full">꽉 차게</button>
+            <span class="sep"></span>
+            <button type="button" data-img="align" data-val="left">왼쪽</button><button type="button" data-img="align" data-val="center">가운데</button><button type="button" data-img="align" data-val="right">오른쪽</button>
+            <span class="sep"></span>
+            <button type="button" data-img="up">위로</button><button type="button" data-img="down">아래로</button>
+            <span class="sep"></span>
+            <button type="button" data-img="remove">삭제</button>
+          </div>
+          <div id="ed-body" class="rich" contenteditable="true" data-placeholder="내용을 입력하세요. 사진은 위 '사진' 버튼으로 넣고, 사진을 누르면 크기와 위치를 바꿀 수 있습니다."></div>
+          <div class="row"><input type="url" id="ed-link" placeholder="관련 링크 (선택) https://" /></div>
+          <div class="row"><label class="pv-check"><input type="checkbox" id="ed-web" checked /> 웹에 공개</label></div>
+          <div class="ed-foot">
+            <span id="ed-status"></span>
+            <button type="button" class="btn primary" id="ed-submit">등록</button>
+          </div>
+        </div>
+      </section>
       <div class="promo">
         <div>
           <b>피클허브 앱에서 더 할 수 있는 것</b>

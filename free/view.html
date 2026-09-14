@@ -177,6 +177,41 @@
   .mine { display:inline-block; margin-left:6px; padding:0 6px; font-size:11px; font-weight:700; line-height:18px; color:var(--brand); border:1px solid var(--brand); border-radius:3px; vertical-align:1px; }
   .cmts .who .mine { margin-left:4px; }
   #pv-article:empty { min-height:120px; }
+  
+  .rich .b { font-weight:700; } .rich .i { font-style:italic; } .rich .u { text-decoration:underline; }
+  .rich .c { color:var(--c); }
+  @media (prefers-color-scheme: dark) { .rich .c { color:color-mix(in srgb, var(--c) 55%, #ffffff); } }
+  .rich .f-sm { font-size:.85em; } .rich .f-lg { font-size:1.3em; } .rich .f-xl { font-size:1.65em; line-height:1.4; }
+  .rich p.a-center { text-align:center; } .rich p.a-right { text-align:right; }
+  .rich figure.rimg { margin:14px 0; display:flex; }
+  .rich figure.rimg.a-left { justify-content:flex-start; } .rich figure.rimg.a-center { justify-content:center; } .rich figure.rimg.a-right { justify-content:flex-end; }
+  .rich figure.rimg img { display:block; max-width:100%; height:auto; border-radius:6px; }
+  .rich figure.rimg.s-sm img { width:40%; } .rich figure.rimg.s-md img { width:70%; } .rich figure.rimg.s-full img { width:100%; }
+  @media (max-width:640px) { .rich figure.rimg.s-sm img { width:60%; } .rich figure.rimg.s-md img { width:100%; } }
+
+
+  /* ── 글쓰기 페이지(write.html) ── */
+  .ed { background:var(--surface); border-top:2px solid var(--brand); border-bottom:1px solid var(--line); margin-top:10px; }
+  .ed .row { padding:12px 14px; border-bottom:1px solid var(--line-soft); }
+  .ed input[type=text], .ed input[type=url] { width:100%; font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
+  .ed-bar { display:flex; flex-wrap:wrap; gap:4px; padding:8px 10px; border-bottom:1px solid var(--line-soft); background:var(--head); position:sticky; top:0; z-index:2; }
+  .ed-bar button, .ed-imgbar button { min-width:36px; min-height:36px; padding:0 10px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
+  .ed-bar button:hover, .ed-imgbar button:hover { border-color:var(--brand); }
+  .ed-bar .sep { width:1px; background:var(--line); margin:4px 4px; }
+  .ed-bar input[type=color] { width:36px; height:36px; padding:2px; border:1px solid var(--line); border-radius:6px; background:var(--surface); cursor:pointer; }
+  .ed-bar .lbl { align-self:center; font-size:12px; color:var(--sub); padding:0 4px; }
+  #ed-body { min-height:320px; padding:16px 14px 24px; font-size:15px; line-height:1.8; outline:none; overflow-wrap:anywhere; }
+  #ed-body:empty::before { content:attr(data-placeholder); color:var(--sub); }
+  #ed-body figure.ed-img { cursor:pointer; border:2px solid transparent; border-radius:8px; padding:2px; }
+  #ed-body figure.ed-img.sel { border-color:var(--brand); }
+  .ed-imgbar { display:flex; flex-wrap:wrap; gap:4px; padding:8px 10px; background:var(--accent-soft); border-bottom:1px solid var(--line-soft); align-items:center; }
+  .ed-imgbar .lbl { font-size:12px; color:var(--on-accent); padding:0 4px; font-weight:700; }
+  .ed-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; }
+  #ed-status { font-size:13px; color:var(--sub); } #ed-status.err { color:#B4372E; }
+  .ed-gate { padding:44px 14px; text-align:center; color:var(--sub); line-height:1.7; }
+  .ed-gate .btn { margin-top:12px; }
+  .ed .pv-check { padding:0; }
+  @media (max-width:640px) { #ed-body { min-height:260px; } .ed-bar { gap:3px; padding:6px 8px; } .ed-bar button { min-width:40px; min-height:40px; padding:0 8px; } }
 
   @media (max-width:640px) {
     body { font-size:14px; }
@@ -218,7 +253,9 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://lee-joon.github.io/pickleverse-web","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":true,"page":1,"staticIds":[],"total":0};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script src="https://lee-joon.github.io/pickleverse-web/assets/app.js?v=9966665512" defer></script>
+    <script type="module" src="https://lee-joon.github.io/pickleverse-web/assets/rich.mjs?v=17950c9994"></script>
+    <script src="https://lee-joon.github.io/pickleverse-web/assets/app.js?v=17950c9994" defer></script>
+    
   </head>
   <body>
     <div class="top">
