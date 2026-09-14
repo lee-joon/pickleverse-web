@@ -40,14 +40,22 @@
   function body2html(s) {
     return String(s || '').split(/\n{2,}/).map(function (p) { return '<p>' + esc(p).replace(/\n/g, '<br />') + '</p>'; }).join('');
   }
+  /* 익명 코드 — src/apps/hub/services/communityAlias.ts 와 동일 알고리즘(계약 테스트가 상수 고정). */
+  function communityAlias(postId, seq) {
+    var input = postId + ':' + seq, h = 2166136261;
+    for (var i = 0; i < input.length; i++) { h ^= input.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return String(100000 + (h % 900000));
+  }
   var base = PV.board === 'news' ? PV.site : PV.site + '/free';
   var viewUrl = PV.site + (PV.board === 'news' ? '/news' : '/free') + '/view.html';
   var opLabel = PV.board === 'news' ? '운영자' : '글쓴이';
 
   function authorLabel(c) {
     if (c.author_kind === 'withdrawn' || c.author_seq == null) return { label: '탈퇴한 회원', cls: 'gone' };
-    if (c.author_seq === 0) return { label: opLabel, cls: 'op' };
-    return { label: '익명 ' + c.author_seq, cls: '' };
+    if (c.author_seq === 0) {
+      return PV.board === 'news' ? { label: opLabel, cls: 'op' } : { label: '익명 ' + communityAlias(postId, 0), badge: opLabel, cls: 'op' };
+    }
+    return { label: '익명 ' + communityAlias(postId, c.author_seq), cls: '' };
   }
 
   /* 서버 예외 문자열 → 사용자 문장. 서버는 영어 식별 문자열을 던진다(i18n 은 클라 책임). */
@@ -296,7 +304,7 @@
             '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
               '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
-              '<td class="who">익명</td><td class="date">' + esc(fmtList(p.published_at)) + '</td><td class="cnt">' + p.comment_count + '</td>' +
+              '<td class="who">익명 ' + communityAlias(p.id, 0) + '</td><td class="date">' + esc(fmtList(p.published_at)) + '</td><td class="cnt">' + p.comment_count + '</td>' +
             '</tr>'), tbody.firstChild);
         });
         var tot = $('#pv-total'); if (tot) tot.textContent = total;
@@ -316,7 +324,8 @@
         var txt = c.hidden || c.body == null ? '<span class="txt tomb">숨김 처리된 댓글입니다.</span>' : '<span class="txt">' + esc(c.body) + '</span>';
         var del = c.is_mine ? '<button class="lnk pv-del" data-del-comment="' + esc(c.id) + '">삭제</button>' : '';
         var mine = c.is_mine ? '<span class="mine">나</span>' : '';
-        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + mine + '</span>' + txt + '<span class="when">' + esc(fmtFull(c.created_at)) + del + '</span></li>';
+        var badge = a.badge ? '<span class="opb">' + esc(a.badge) + '</span>' : '';
+        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + badge + mine + '</span>' + txt + '<span class="when">' + esc(fmtFull(c.created_at)) + del + '</span></li>';
       }).join('') + '</ul>';
     }
     var h = $('#pv-ccount'); if (h) h.textContent = comments.length;
@@ -347,7 +356,7 @@
   function renderArticle(p) {
     var art = $('#pv-article'); if (!art) return;
     document.title = p.title + ' — ' + (PV.board === 'news' ? '뉴스 게시판' : '자유게시판') + ' — 피클허브 커뮤니티';
-    var who = PV.board === 'news' ? '피클허브' : '익명';
+    var who = PV.board === 'news' ? '피클허브' : '익명 ' + communityAlias(p.id, 0);
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
         '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b></span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
