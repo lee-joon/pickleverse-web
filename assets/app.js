@@ -41,6 +41,7 @@
     return String(s || '').split(/\n{2,}/).map(function (p) { return '<p>' + esc(p).replace(/\n/g, '<br />') + '</p>'; }).join('');
   }
   var base = PV.board === 'news' ? PV.site : PV.site + '/free';
+  var viewUrl = PV.site + (PV.board === 'news' ? '/news' : '/free') + '/view.html';
   var opLabel = PV.board === 'news' ? '운영자' : '글쓴이';
 
   function authorLabel(c) {
@@ -61,6 +62,7 @@
     ['Blocked term', '사용할 수 없는 표현이 포함되어 있습니다.'],
     ['Community write suspended', '커뮤니티 작성이 정지된 계정입니다.'],
     ['Not authenticated', '로그인이 필요합니다.'],
+    ['Not authorized', '뉴스 게시판은 운영자만 쓸 수 있습니다. 자유게시판에 글을 남겨 주세요.'],
     ['Post not found', '글을 찾을 수 없습니다. 삭제되었을 수 있습니다.'],
     ['Comment not found', '댓글을 찾을 수 없습니다.'],
     ['Invalid real_name length', '이름은 2~40자여야 합니다.'],
@@ -222,14 +224,21 @@
     checkProfile().then(function (ok) { if (ok) cb(); else openProfile(cb); });
   }
 
-  /* ── 글쓰기 (자유게시판만 — 뉴스는 운영자가 앱에서) ──────────────────── */
+  /* ── 글쓰기 — 자유게시판은 회원 누구나, 뉴스는 운영자(서버 is_platform_admin 이 판정) ── */
   function openCompose() {
+    var isNews = PV.board === 'news';
     var d = dialog(
       '<button class="x" data-x aria-label="닫기">×</button>' +
-      '<h3>자유게시판 글쓰기</h3><p class="pv-note">익명으로 올라갑니다. 같은 글 안에서만 같은 번호로 보입니다. 글과 댓글은 이 웹사이트에도 익명 그대로 공개됩니다.</p>' +
+      (isNews
+        ? '<h3>뉴스 글쓰기</h3><p class="pv-note">운영자 계정만 등록할 수 있습니다. "웹에 공개"를 켜면 이 사이트에도 바로 실립니다.</p>'
+        : '<h3>자유게시판 글쓰기</h3><p class="pv-note">익명으로 올라갑니다. 같은 글 안에서만 같은 번호로 보입니다. 글과 댓글은 이 웹사이트에도 익명 그대로 공개됩니다.</p>') +
       '<form class="pv-form" id="pv-compose">' +
         '<label>제목<input name="title" type="text" maxlength="100" required /></label>' +
         '<label>내용<textarea name="body" rows="10" maxlength="5000" required></textarea></label>' +
+        (isNews
+          ? '<label>관련 링크 (선택)<input name="link" type="url" placeholder="https://" /></label>' +
+            '<label class="pv-check"><input type="checkbox" name="web" checked /> 웹에 공개</label>'
+          : '') +
         '<p class="pv-err" hidden></p>' +
         '<button type="submit" class="btn primary">등록</button>' +
       '</form>'
@@ -237,13 +246,16 @@
     var form = $('#pv-compose', d);
     form.addEventListener('submit', function (ev) {
       ev.preventDefault(); setErr(d, ''); busy(form, true);
+      var link = isNews && form.link.value.trim() ? form.link.value.trim() : null;
       sb.rpc('hub_create_community_post', {
-        p_board_kind: 'free', p_title: form.title.value.trim(), p_body: form.body.value.trim(), p_image_paths: [], p_link_url: null,
+        p_board_kind: PV.board, p_title: form.title.value.trim(), p_body: form.body.value.trim(), p_image_paths: [], p_link_url: link,
       }).then(function (r) {
-        busy(form, false);
-        if (r.error) { setErr(d, msg(r.error)); return; }
+        if (r.error) { busy(form, false); setErr(d, msg(r.error)); return; }
         var id = r.data && r.data.id;
-        location.href = PV.site + '/free/view.html?id=' + encodeURIComponent(id);
+        var next = isNews && form.web.checked
+          ? sb.rpc('hub_set_news_web_publish', { p_post_id: id, p_publish: true })
+          : Promise.resolve({});
+        return next.then(function () { location.href = viewUrl + '?id=' + encodeURIComponent(id); });
       });
     });
   }
@@ -397,11 +409,9 @@
   sb.auth.getSession().then(function (r) {
     session = (r.data && r.data.session) || null;
     renderAccount();
-    if (PV.board === 'free') {
-      document.querySelectorAll('[data-compose-slot]').forEach(function (a) {
-        a.outerHTML = '<button class="btn primary" data-pv="compose">' + esc(a.textContent.trim() || '글쓰기') + '</button>';
-      });
-    }
+    document.querySelectorAll('[data-compose-slot]').forEach(function (a) {
+      a.outerHTML = '<button class="btn primary" data-pv="compose">' + esc(a.textContent.trim() || '글쓰기') + '</button>';
+    });
     refreshList();
     if (postId) { renderCommentForm(); loadPost(); }
   });
