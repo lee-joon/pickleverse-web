@@ -92,10 +92,13 @@
 
   /* ── 세션 / 계정 슬롯 ──────────────────────────────────────────────────── */
   var session = null;
+  var me = null; // 본인 행(users) — 본인 화면에만 쓴다. 다른 사람의 행을 읽는 경로는 없다.
   function renderAccount() {
     var slot = $('#pv-account'); if (!slot) return;
     if (session) {
-      slot.innerHTML = '<span class="me">익명 회원</span><button class="lnk" data-pv="logout">로그아웃</button>';
+      var name = (me && me.real_name) || (session.user && session.user.email) || '회원';
+      slot.innerHTML = '<span class="me" title="다른 이용자에게는 익명으로 보입니다">' + esc(name) + '</span>' +
+        '<button class="lnk" data-pv="logout">로그아웃</button>';
     } else {
       slot.innerHTML = '<button class="lnk" data-pv="login">로그인</button><button class="lnk" data-pv="signup">회원가입</button>';
     }
@@ -171,6 +174,8 @@
       .eq('id', session.user.id).maybeSingle()
       .then(function (r) {
         var u = r.data;
+        me = u || null;
+        renderAccount();
         profileOk = !!(u && u.real_name && u.nationality_type && u.platform_terms_accepted_at && u.privacy_policy_accepted_at);
         return profileOk;
       });
@@ -214,7 +219,7 @@
       }).then(function (r) {
         busy(form, false);
         if (r.error) { setErr(d, msg(r.error)); return; }
-        profileOk = true; d.close(); if (onDone) onDone();
+        profileOk = true; me = { real_name: form.name.value.trim() }; renderAccount(); d.close(); if (onDone) onDone();
       });
     });
   }
@@ -271,6 +276,7 @@
         posts.forEach(function (p) {
           var row = tbody.querySelector('tr[data-id="' + p.id + '"]');
           if (row) {
+            if (p.is_mine && !row.querySelector('.mine')) { row.classList.add('is-mine'); row.querySelector('.tit').appendChild(el('<span class="mine">내 글</span>')); }
             var cnt = row.querySelector('.cnt'); if (cnt) cnt.textContent = p.comment_count;
             var cmt = row.querySelector('.cmt');
             if (p.comment_count > 0) { if (!cmt) { cmt = el('<span class="cmt"></span>'); row.querySelector('.tit').appendChild(cmt); } cmt.textContent = '[' + p.comment_count + ']'; }
@@ -285,10 +291,11 @@
         var total = (PV.total || 0) + fresh.length;
         fresh.forEach(function (p, i) {
           var cmt = p.comment_count > 0 ? ' <span class="cmt">[' + p.comment_count + ']</span>' : '';
+          var mine = p.is_mine ? '<span class="mine">내 글</span>' : '';
           tbody.insertBefore(el(
-            '<tr data-id="' + esc(p.id) + '" class="fresh">' +
+            '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
-              '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + '</td>' +
+              '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
               '<td class="who">익명</td><td class="date">' + esc(fmtList(p.published_at)) + '</td><td class="cnt">' + p.comment_count + '</td>' +
             '</tr>'), tbody.firstChild);
         });
@@ -308,7 +315,8 @@
         var a = authorLabel(c);
         var txt = c.hidden || c.body == null ? '<span class="txt tomb">숨김 처리된 댓글입니다.</span>' : '<span class="txt">' + esc(c.body) + '</span>';
         var del = c.is_mine ? '<button class="lnk pv-del" data-del-comment="' + esc(c.id) + '">삭제</button>' : '';
-        return '<li><span class="who ' + a.cls + '">' + esc(a.label) + '</span>' + txt + '<span class="when">' + esc(fmtFull(c.created_at)) + del + '</span></li>';
+        var mine = c.is_mine ? '<span class="mine">나</span>' : '';
+        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + mine + '</span>' + txt + '<span class="when">' + esc(fmtFull(c.created_at)) + del + '</span></li>';
       }).join('') + '</ul>';
     }
     var h = $('#pv-ccount'); if (h) h.textContent = comments.length;
@@ -361,6 +369,8 @@
         renderComments(data.comments || []);
         var acts = $('#pv-postactions');
         if (acts) acts.innerHTML = data.post.is_mine ? '<button class="btn pv-del" data-del-post>삭제</button>' : '<a class="btn primary" href="' + esc(PV.store) + '">앱에서 열기</a>';
+        var metaWho = $('#pv-article .meta b, .view .meta b');
+        if (data.post.is_mine && metaWho && !metaWho.querySelector('.mine')) metaWho.appendChild(el('<span class="mine">내 글</span>'));
       });
   }
 
@@ -400,7 +410,7 @@
 
   /* ── 부트 ──────────────────────────────────────────────────────────────── */
   sb.auth.onAuthStateChange(function (event, s) {
-    session = s || null; profileOk = null;
+    session = s || null; profileOk = null; if (!session) me = null;
     renderAccount();
     if (event === 'PASSWORD_RECOVERY') openNewPassword();
     if (event === 'SIGNED_IN') { checkProfile().then(function (ok) { if (!ok) openProfile(); }); }
@@ -409,6 +419,7 @@
   sb.auth.getSession().then(function (r) {
     session = (r.data && r.data.session) || null;
     renderAccount();
+    if (session) checkProfile();
     document.querySelectorAll('[data-compose-slot]').forEach(function (a) {
       a.outerHTML = '<button class="btn primary" data-pv="compose">' + esc(a.textContent.trim() || '글쓰기') + '</button>';
     });
