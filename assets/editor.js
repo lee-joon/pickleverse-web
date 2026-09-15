@@ -24,6 +24,13 @@
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function status(text, isErr) { var el = $('#ed-status'); if (el) { el.textContent = text || ''; el.classList.toggle('err', !!isErr); } }
+  /** 사용자 문장 + (알 수 없는 오류면) 서버 원문 일부 — "잠시 후 다시" 만으로는 원인을 알 수 없었던 사고 이후. */
+  function errText(e) {
+    var friendly = App.msg(e);
+    var raw = e && (e.message || e.error_description || e.error) ? String(e.message || e.error_description || e.error) : '';
+    if (raw && friendly.indexOf('잠시 후') >= 0) friendly += ' (' + raw.slice(0, 140) + ')';
+    return friendly;
+  }
   function uuid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(16) + Math.random().toString(16).slice(2)); }
 
   /* ── 로그인 게이트: 페이지 자체가 문지기다 ─────────────────────────────── */
@@ -70,7 +77,7 @@
     if (current + files.length > MAX_IMAGES) { status('사진은 글 하나에 ' + MAX_IMAGES + '장까지 넣을 수 있습니다.', true); return; }
     var chain = Promise.resolve();
     files.forEach(function (f) { chain = chain.then(function () { return addImage(f); }); });
-    chain.catch(function (e) { status(App.msg(e), true); });
+    chain.catch(function (e) { status(errText(e), true); });
   });
 
   function addImage(file) {
@@ -269,7 +276,7 @@
           location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
         });
       }).catch(function (e) {
-        submitting = false; $('#ed-submit').disabled = false; status(App.msg(e), true);
+        submitting = false; $('#ed-submit').disabled = false; status(errText(e), true);
       });
     });
     // requireMember 가 로그인 다이얼로그로 빠지면 등록은 진행되지 않는다
