@@ -107,6 +107,16 @@
     return '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
+  /* 신고 사유 — src/modules/moderation/reportService.ts 의 REPORT_REASONS 와 같은 코드·순서.
+     라벨은 ko/hub.json community/report.reason 과 같은 문구를 쓴다(웹은 한국어 단일). */
+  var REPORT_REASONS = [
+    ['spam', '스팸/도배'],
+    ['harassment', '괴롭힘/욕설'],
+    ['sexual', '음란성/선정성'],
+    ['violence', '폭력/위협'],
+    ['other', '기타'],
+  ];
+
   /* ── 다이얼로그 ────────────────────────────────────────────────────────── */
   function dialog(html) {
     var d = el('<dialog class="pv">' + html + '</dialog>');
@@ -259,6 +269,44 @@
     checkProfile().then(function (ok) { if (ok) cb(); else openProfile(cb); });
   }
 
+  /* ── 신고 — 앱과 같은 report_content RPC. 같은 사람이 같은 글을 두 번 신고하면
+     서버가 already_reported 를 돌려주므로 중복 신고는 자연히 막힌다. ── */
+  function openReport(contentType, contentId, onDone) {
+    var isPost = contentType === 'hub_community_post';
+    var d = dialog(
+      '<button class="x" data-x aria-label="닫기">×</button>' +
+      '<h3>신고 사유</h3>' +
+      '<p class="pv-note">' + (isPost ? '신고한 글은 내 화면에서 바로 보이지 않습니다.' : '신고한 댓글은 내 화면에서 바로 가려집니다.') + ' 운영자가 확인 후 조치합니다.</p>' +
+      '<div class="pv-reasons">' +
+        REPORT_REASONS.map(function (r) {
+          return '<button type="button" class="btn" data-reason="' + r[0] + '">' + esc(r[1]) + '</button>';
+        }).join('') +
+      '</div><p class="pv-err" hidden></p>'
+    );
+    d.querySelectorAll('[data-reason]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        d.querySelectorAll('button').forEach(function (n) { n.disabled = true; });
+        sb.rpc('report_content', {
+          p_content_type: contentType, p_content_id: contentId, p_reason_code: b.dataset.reason, p_detail: null,
+        }).then(function (r) {
+          if (r.error) throw r.error;
+          d.close();
+          var already = r.data && r.data.status === 'already_reported';
+          if (onDone) onDone(already);
+        }).catch(function (e) {
+          d.querySelectorAll('button').forEach(function (n) { n.disabled = false; });
+          setErr(d, msg(e));
+        });
+      });
+    });
+  }
+
+  /* 신고한 글은 서버가 'Post not found' 로 막으므로 다시 읽지 않고 목록으로 보낸다. */
+  function afterPostReport(already) {
+    alert(already ? '이미 신고한 글입니다.' : '신고가 접수되었습니다. 검토 후 조치할게요.');
+    location.href = base + '/';
+  }
+
   /* ── 목록 페이지: 빌드 이후 올라온 글을 위에 얹고 댓글 수를 갱신 ────────── */
   function refreshList() {
     var tbody = $('#pv-list'); if (!tbody || PV.page !== 1) return;
@@ -307,10 +355,18 @@
       box.innerHTML = '<ul>' + comments.map(function (c) {
         var a = authorLabel(c);
         var txt = c.hidden || c.body == null ? '<span class="txt tomb">숨김 처리된 댓글입니다.</span>' : '<span class="txt">' + esc(c.body) + '</span>';
-        var del = c.is_mine ? '<button class="lnk pv-del" data-del-comment="' + esc(c.id) + '">삭제</button>' : '';
         var mine = c.is_mine ? '<span class="mine">나</span>' : '';
         var badge = a.badge ? '<span class="opb">' + esc(a.badge) + '</span>' : '';
-        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + badge + mine + '</span>' + txt + '<span class="when">' + esc(fmtFull(c.created_at)) + del + '</span></li>';
+        // 조건은 앱(HubCommunityPostScreen)과 같다 — 숨기기는 can_mute 이고 아직 안 가려졌을 때, 신고는 내 댓글이 아닐 때.
+        var acts = [];
+        if (session) {
+          if (c.is_mine) acts.push('<button class="lnk pv-del" data-del-comment="' + esc(c.id) + '">삭제</button>');
+          if (c.can_mute && !c.hidden) acts.push('<button class="lnk" data-mute="' + esc(c.id) + '">숨기기</button>');
+          if (c.can_mute && c.hidden) acts.push('<button class="lnk" data-unmute="' + esc(c.id) + '">숨김 해제</button>');
+          if (!c.is_mine) acts.push('<button class="lnk" data-report-comment="' + esc(c.id) + '">신고</button>');
+        }
+        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + badge + mine + '</span>' + txt +
+          '<span class="when">' + esc(fmtFull(c.created_at)) + (acts.length ? '<span class="acts">' + acts.join('') + '</span>' : '') + '</span></li>';
       }).join('') + '</ul>';
     }
     var h = $('#pv-ccount'); if (h) h.textContent = comments.length;
@@ -370,7 +426,11 @@
         if (PV.view) renderArticle(data.post);
         renderComments(data.comments || []);
         var acts = $('#pv-postactions');
-        if (acts) acts.innerHTML = data.post.is_mine ? '<button class="btn danger pv-del" data-del-post>삭제</button>' : '';
+        if (acts) {
+          acts.innerHTML = data.post.is_mine
+            ? '<button class="btn danger pv-del" data-del-post>삭제</button>'
+            : (session ? '<button class="btn" data-report-post>신고</button>' : '');
+        }
         var metaWho = $('#pv-article .meta b, .view .meta b');
         if (data.post.is_mine && metaWho && !metaWho.querySelector('.mine')) metaWho.appendChild(el('<span class="mine">내 글</span>'));
       });
@@ -378,13 +438,28 @@
 
   /* ── 이벤트 위임 ───────────────────────────────────────────────────────── */
   document.addEventListener('click', function (ev) {
-    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post]'); if (!t) return;
+    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post]'); if (!t) return;
     if (t.dataset.pv === 'login') openAuth('login');
     else if (t.dataset.pv === 'signup') openAuth('signup');
     else if (t.dataset.pv === 'logout') sb.auth.signOut({ scope: 'local' });
     else if (t.dataset.delComment) {
       if (!confirm('이 댓글을 삭제할까요?')) return;
       sb.rpc('hub_delete_community_comment', { p_comment_id: t.dataset.delComment }).then(function (r) { if (r.error) alert(msg(r.error)); else loadPost(); });
+    } else if (t.dataset.mute) {
+      sb.rpc('hub_mute_community_author', { p_comment_id: t.dataset.mute })
+        .then(function (r) { if (r.error) throw r.error; loadPost(); })
+        .catch(function (e) { alert(msg(e)); });
+    } else if (t.dataset.unmute) {
+      sb.rpc('hub_unmute_community_author', { p_comment_id: t.dataset.unmute })
+        .then(function (r) { if (r.error) throw r.error; loadPost(); })
+        .catch(function (e) { alert(msg(e)); });
+    } else if (t.dataset.reportComment) {
+      openReport('hub_community_comment', t.dataset.reportComment, function (already) {
+        if (already) alert('이미 신고한 댓글입니다.');
+        loadPost();
+      });
+    } else if (t.hasAttribute('data-report-post')) {
+      openReport('hub_community_post', postId, afterPostReport);
     } else if (t.hasAttribute('data-del-post')) {
       if (!confirm('이 글을 삭제할까요? 댓글도 함께 사라집니다.')) return;
       sb.rpc('hub_delete_community_post', { p_post_id: postId }).then(function (r) { if (r.error) alert(msg(r.error)); else location.href = base + '/'; });
