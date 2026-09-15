@@ -114,13 +114,14 @@ export const RICH_CSS = `
   .rich .b { font-weight:700; } .rich .i { font-style:italic; } .rich .u { text-decoration:underline; }
   .rich .c { color:var(--c); }
   @media (prefers-color-scheme: dark) { .rich .c { color:color-mix(in srgb, var(--c) 55%, #ffffff); } }
-  .rich .f-sm { font-size:.85em; } .rich .f-lg { font-size:1.3em; } .rich .f-xl { font-size:1.65em; line-height:1.4; }
+  .rich .f-sm { font-size:.86em; } .rich .f-lg { font-size:1.22em; } .rich .f-xl { font-size:1.45em; line-height:1.45; }
   .rich p.a-center { text-align:center; } .rich p.a-right { text-align:right; }
-  .rich figure.rimg { margin:14px 0; display:flex; }
+  .rich figure.rimg { margin:28px 0; display:flex; }
   .rich figure.rimg.a-left { justify-content:flex-start; } .rich figure.rimg.a-center { justify-content:center; } .rich figure.rimg.a-right { justify-content:flex-end; }
-  .rich figure.rimg img { display:block; max-width:100%; height:auto; border-radius:6px; }
-  .rich figure.rimg.s-sm img { width:40%; } .rich figure.rimg.s-md img { width:70%; } .rich figure.rimg.s-full img { width:100%; }
-  @media (max-width:640px) { .rich figure.rimg.s-sm img { width:60%; } .rich figure.rimg.s-md img { width:100%; } }
+  /* width 가 아니라 max-width — 저해상도 사진이 업스케일되지 않고, 세로 사진은 화면을 넘지 않는다. */
+  .rich figure.rimg img { display:block; width:auto; max-width:100%; height:auto; max-height:76vh; border-radius:6px; }
+  .rich figure.rimg.s-sm img { max-width:45%; } .rich figure.rimg.s-md img { max-width:75%; } .rich figure.rimg.s-full img { max-width:100%; }
+  @media (max-width:640px) { .rich figure.rimg.s-sm img { max-width:65%; } .rich figure.rimg.s-md img { max-width:100%; } }
 `;
 
 if (typeof globalThis !== 'undefined') {

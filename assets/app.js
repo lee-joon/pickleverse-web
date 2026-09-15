@@ -271,7 +271,6 @@
           var row = tbody.querySelector('tr[data-id="' + p.id + '"]');
           if (row) {
             if (p.is_mine && !row.querySelector('.mine')) { row.classList.add('is-mine'); row.querySelector('.tit').appendChild(el('<span class="mine">내 글</span>')); }
-            var cnt = row.querySelector('.cnt'); if (cnt) cnt.textContent = p.comment_count;
             var cmt = row.querySelector('.cmt');
             if (p.comment_count > 0) { if (!cmt) { cmt = el('<span class="cmt"></span>'); row.querySelector('.tit').appendChild(cmt); } cmt.textContent = '[' + p.comment_count + ']'; }
             else if (cmt) cmt.remove();
@@ -290,7 +289,7 @@
             '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
               '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
-              '<td class="who">익명 ' + communityAlias(p.id, 0) + '</td><td class="date">' + esc(fmtList(p.published_at)) + '</td><td class="cnt">' + p.comment_count + '</td>' +
+              '<td class="who">익명 ' + communityAlias(p.id, 0) + '</td><td class="date">' + esc(fmtList(p.published_at)) + '</td>' +
             '</tr>'), tbody.firstChild);
         });
         var tot = $('#pv-total'); if (tot) tot.textContent = total;
@@ -315,10 +314,10 @@
       }).join('') + '</ul>';
     }
     var h = $('#pv-ccount'); if (h) h.textContent = comments.length;
-    var m = $('#pv-mcount'); if (m) m.textContent = comments.length;
   }
   function renderCommentForm() {
     var lock = $('#pv-cform-slot'); if (!lock) return;
+    lock.className = 'cform-slot';
     lock.innerHTML =
       '<form class="pv-form pv-cform" id="pv-cform">' +
         '<textarea name="body" rows="3" maxlength="1000" placeholder="' + (session ? '댓글을 입력하세요 (익명)' : '로그인하면 댓글을 쓸 수 있습니다') + '" required></textarea>' +
@@ -354,7 +353,7 @@
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
         '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b></span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
-        (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '<span>댓글 <b id="pv-mcount">' + (p.comment_count || 0) + '</b></span></div></div>' +
+        (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';
@@ -371,7 +370,7 @@
         if (PV.view) renderArticle(data.post);
         renderComments(data.comments || []);
         var acts = $('#pv-postactions');
-        if (acts) acts.innerHTML = data.post.is_mine ? '<button class="btn pv-del" data-del-post>삭제</button>' : '<a class="btn primary" href="' + esc(PV.store) + '">앱에서 열기</a>';
+        if (acts) acts.innerHTML = data.post.is_mine ? '<button class="btn danger pv-del" data-del-post>삭제</button>' : '';
         var metaWho = $('#pv-article .meta b, .view .meta b');
         if (data.post.is_mine && metaWho && !metaWho.querySelector('.mine')) metaWho.appendChild(el('<span class="mine">내 글</span>'));
       });
