@@ -330,17 +330,27 @@
         if (fresh.length === 0) return;
         var empty = tbody.querySelector('tr.empty'); if (empty) empty.remove();
         var total = (PV.total || 0) + fresh.length;
+        // 한 줄씩 firstChild 앞에 끼우면 순서가 뒤집혀 번호가 5,6,4 처럼 나온다 —
+        // 조각(fragment)에 순서대로 담아 한 번에 넣는다. 공지 행이 있으면 그 아래에.
+        var frag = document.createDocumentFragment();
         fresh.forEach(function (p, i) {
           var cmt = p.comment_count > 0 ? ' <span class="cmt">[' + p.comment_count + ']</span>' : '';
           var mine = p.is_mine ? '<span class="mine">내 글</span>' : '';
-          tbody.insertBefore(el(
+          frag.appendChild(el(
             '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
               '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
               '<td class="who">익명 ' + communityAlias(p.id, 0) + '</td><td class="date">' + esc(fmtList(p.published_at)) + '</td>' +
-            '</tr>'), tbody.firstChild);
+            '</tr>'));
         });
-        var tot = $('#pv-total'); if (tot) tot.textContent = total;
+        var anchor = tbody.querySelector('tr:not(.notice)');
+        tbody.insertBefore(frag, anchor || null);
+        var tot = $('#pv-total');
+        if (tot) {
+          tot.textContent = total;
+          // 빌드 시점에 글이 0건이면 카운트가 hidden 으로 나간다 — 글이 생겼으니 되살린다.
+          var wrap = tot.closest('span[hidden]'); if (wrap) wrap.removeAttribute('hidden');
+        }
       });
   }
 
