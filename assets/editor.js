@@ -1,8 +1,10 @@
 /*
- * 피클허브 커뮤니티 웹 — 글쓰기 페이지(write.html) 편집기 (오너 결정 2026-09-15).
+ * 피클허브 커뮤니티 웹 — 글쓰기 페이지(write.html) 편집기 (오너 결정 2026-09-15, 네이버 스마트에디터 참고).
  *
- * 팝업이 아니라 전용 페이지다. 서식(굵게·기울임·밑줄·색·크기·정렬)과 사진(20MB 이하만 받고
- * 캔버스로 다운사이징·재인코딩해 업로드 — EXIF 도 이때 사라진다), 사진의 크기·정렬·순서 조절.
+ * 구조: 헤더(목록·게시판·임시저장 표시·발행) + 2줄 도구 막대(삽입 / 서식) + 넓은 문서(제목·본문).
+ * 서식(굵게·기울임·밑줄·글자색·크기·정렬)과 사진(20MB 이하만 받고 캔버스로 다운사이징·재인코딩해
+ * 업로드 — EXIF 도 이때 사라진다). 사진을 누르면 사진 위에 정렬·크기·순서·삭제 도구가 뜬다.
+ * 발행은 확인 패널을 거친다(뉴스: 웹 공개 토글·관련 링크). 작성 중 내용은 이 브라우저에 임시저장된다.
  *
  * 저장 형식은 HTML 이 아니라 모델(rich.mjs)이다. contenteditable 의 DOM 을 걸어 모델로 직렬화하는
  * 과정이 곧 정제다 — 허용된 서식만 남고, 붙여넣은 마크업·스크립트는 살아남지 못한다.
@@ -19,7 +21,10 @@
   var draftId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
   var MAX_ORIGINAL = 20 * 1024 * 1024; // 오너 결정: 20MB 이하만
   var MAX_EDGE = 1600, JPEG_Q = 0.85, MAX_IMAGES = Rich.LIMITS.images;
+  var DRAFT_KEY = 'pv-draft-' + PV.board;
   var uploaded = []; // 이 편집 세션에서 올린 경로(등록 안 하고 떠나면 삭제 시도)
+  var linkUrl = null; // 뉴스 관련 링크
+  var webPublish = true; // 뉴스 웹 공개
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -40,6 +45,7 @@
       App.checkProfile().then(function (ok) {
         if (!ok) { App.openProfile(applyGate); return; }
         gate.hidden = true; form.hidden = false;
+        offerRestore();
       });
     } else {
       gate.hidden = false; form.hidden = true;
@@ -54,17 +60,49 @@
   function focusBody() { root.focus(); }
   document.querySelectorAll('[data-cmd]').forEach(function (b) {
     b.addEventListener('mousedown', function (ev) { ev.preventDefault(); }); // 선택 유지
-    b.addEventListener('click', function () {
-      focusBody();
-      var cmd = b.dataset.cmd, val = b.dataset.val || null;
-      if (cmd === 'fontSize') { document.execCommand('fontSize', false, { sm: '2', md: '3', lg: '5', xl: '7' }[val] || '3'); return; }
-      document.execCommand(cmd, false, val);
-    });
+    b.addEventListener('click', function () { focusBody(); document.execCommand(b.dataset.cmd, false, null); refreshToolbar(); });
   });
-  var colorInput = $('#ed-color');
-  if (colorInput) {
-    colorInput.addEventListener('input', function () { focusBody(); document.execCommand('foreColor', false, colorInput.value); });
+  var sizeSel = $('#ed-size');
+  sizeSel.addEventListener('mousedown', function () { savedRange = currentRange(); });
+  sizeSel.addEventListener('change', function () {
+    restoreRange(); focusBody();
+    document.execCommand('fontSize', false, { sm: '2', md: '3', lg: '5', xl: '7' }[sizeSel.value] || '3');
+  });
+  // 글자색 팔레트
+  var pal = $('#ed-pal'), colorBtn = $('#ed-color-btn'), colorInput = $('#ed-color'), swatch = $('#ed-color-swatch');
+  var savedRange = null;
+  function currentRange() { var s = window.getSelection(); return s && s.rangeCount && root.contains(s.anchorNode) ? s.getRangeAt(0).cloneRange() : null; }
+  function restoreRange() { if (!savedRange) return; var s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); }
+  function applyColor(c) {
+    restoreRange(); focusBody();
+    document.execCommand('foreColor', false, c);
+    swatch.style.background = c; colorInput.value = c; pal.hidden = true;
   }
+  colorBtn.addEventListener('mousedown', function (ev) { ev.preventDefault(); savedRange = currentRange(); });
+  colorBtn.addEventListener('click', function () { pal.hidden = !pal.hidden; });
+  pal.querySelectorAll('[data-color]').forEach(function (b) {
+    b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+    b.addEventListener('click', function () { applyColor(b.dataset.color); });
+  });
+  colorInput.addEventListener('input', function () { applyColor(colorInput.value); });
+  document.addEventListener('click', function (ev) { if (!ev.target.closest('.ned-color')) pal.hidden = true; });
+  // 커서 위치의 서식을 도구 막대에 반영(B/I/U on, 크기)
+  function refreshToolbar() {
+    ['bold', 'italic', 'underline'].forEach(function (c) {
+      var b = document.querySelector('[data-cmd="' + c + '"]'); if (!b) return;
+      var on = false; try { on = document.queryCommandState(c); } catch (e) {}
+      b.classList.toggle('on', !!on);
+    });
+    var sel = window.getSelection();
+    if (sel && sel.anchorNode && root.contains(sel.anchorNode)) {
+      var el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+      var font = el && el.closest ? el.closest('font[size]') : null;
+      sizeSel.value = font ? sizeOf(font) : 'md';
+    }
+  }
+  document.addEventListener('selectionchange', function () { if (document.activeElement === root) refreshToolbar(); });
+  root.addEventListener('keyup', refreshToolbar);
+  root.addEventListener('mouseup', refreshToolbar);
 
   /* ── 사진: 선택 → 20MB 검사 → 다운사이징(JPEG) → 업로드 → 커서 위치에 figure ─────── */
   var fileInput = $('#ed-file');
@@ -92,6 +130,7 @@
         uploaded.push(path);
         insertFigure(path);
         status('');
+        markDirty();
       });
     });
   }
@@ -118,8 +157,19 @@
     });
   }
 
-  function figureHtml(path) {
-    return '<figure class="rimg ed-img s-md a-center" contenteditable="false" data-path="' + esc(path) + '"><img src="' + esc(Rich.imageUrl(PV.url, path)) + '" alt="" /></figure>';
+  var IMG_TOOLS =
+    '<div class="ed-imgtools" contenteditable="false">' +
+      '<button type="button" data-img="align" data-val="left">왼쪽</button><button type="button" data-img="align" data-val="center">가운데</button><button type="button" data-img="align" data-val="right">오른쪽</button>' +
+      '<span class="sep"></span>' +
+      '<button type="button" data-img="size" data-val="sm">작게</button><button type="button" data-img="size" data-val="md">보통</button><button type="button" data-img="size" data-val="full">문서 너비</button>' +
+      '<span class="sep"></span>' +
+      '<button type="button" data-img="up">위로</button><button type="button" data-img="down">아래로</button>' +
+      '<span class="sep"></span>' +
+      '<button type="button" data-img="remove">삭제</button>' +
+    '</div>';
+  function figureHtml(path, size, align) {
+    return '<figure class="rimg ed-img s-' + (size || 'md') + ' a-' + (align || 'center') + '" contenteditable="false" data-path="' + esc(path) + '">' +
+      '<img src="' + esc(Rich.imageUrl(PV.url, path)) + '" alt="" />' + IMG_TOOLS + '</figure>';
   }
   function insertFigure(path) {
     var fig = document.createElement('template'); fig.innerHTML = figureHtml(path);
@@ -135,36 +185,42 @@
     var p = document.createElement('div'); p.innerHTML = '<br>';
     node.insertAdjacentElement('afterend', p);
     selectFigure(node);
+    node.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
-  /* ── 사진 선택 → 크기·정렬·순서·삭제 도구 ──────────────────────────────── */
-  var imgbar = $('#ed-imgbar'), selected = null;
+  /* ── 사진 선택 → 사진 위 도구(정렬·크기·순서·삭제) ───────────────────────── */
+  var selected = null;
   function selectFigure(fig) {
     if (selected) selected.classList.remove('sel');
     selected = fig;
-    if (fig) { fig.classList.add('sel'); imgbar.hidden = false; } else { imgbar.hidden = true; }
+    if (fig) { fig.classList.add('sel'); syncImgTools(fig); }
+  }
+  function syncImgTools(fig) {
+    fig.querySelectorAll('[data-img="align"]').forEach(function (b) { b.classList.toggle('on', fig.classList.contains('a-' + b.dataset.val)); });
+    fig.querySelectorAll('[data-img="size"]').forEach(function (b) { b.classList.toggle('on', fig.classList.contains('s-' + b.dataset.val)); });
   }
   root.addEventListener('click', function (ev) {
+    var tool = ev.target.closest('[data-img]');
+    if (tool) { ev.preventDefault(); imgAction(tool.dataset.img, tool.dataset.val, tool.closest('figure.ed-img')); return; }
     var fig = ev.target.closest('figure.ed-img');
     selectFigure(fig && root.contains(fig) ? fig : null);
   });
-  document.querySelectorAll('[data-img]').forEach(function (b) {
-    b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
-    b.addEventListener('click', function () {
-      if (!selected) return;
-      var k = b.dataset.img, v = b.dataset.val;
-      if (k === 'size') { selected.classList.remove('s-sm', 's-md', 's-full'); selected.classList.add('s-' + v); }
-      else if (k === 'align') { selected.classList.remove('a-left', 'a-center', 'a-right'); selected.classList.add('a-' + v); }
-      else if (k === 'up') { var prev = selected.previousElementSibling; if (prev) root.insertBefore(selected, prev); }
-      else if (k === 'down') { var next = selected.nextElementSibling; if (next) root.insertBefore(next, selected); }
-      else if (k === 'remove') {
-        var path = selected.dataset.path; var fig = selected; selectFigure(null); fig.remove();
-        App.sb.storage.from(Rich.BUCKET).remove([path]).catch(function () {});
-        uploaded = uploaded.filter(function (p) { return p !== path; });
-      }
-      selected && selected.scrollIntoView({ block: 'nearest' });
-    });
-  });
+  root.addEventListener('mousedown', function (ev) { if (ev.target.closest('[data-img]')) ev.preventDefault(); });
+  function imgAction(k, v, fig) {
+    if (!fig) return;
+    if (k === 'size') { fig.classList.remove('s-sm', 's-md', 's-full'); fig.classList.add('s-' + v); }
+    else if (k === 'align') { fig.classList.remove('a-left', 'a-center', 'a-right'); fig.classList.add('a-' + v); }
+    else if (k === 'up') { var prev = fig.previousElementSibling; if (prev) root.insertBefore(fig, prev); }
+    else if (k === 'down') { var next = fig.nextElementSibling; if (next) root.insertBefore(next, fig); }
+    else if (k === 'remove') {
+      var path = fig.dataset.path; selectFigure(null); fig.remove();
+      App.sb.storage.from(Rich.BUCKET).remove([path]).catch(function () {});
+      uploaded = uploaded.filter(function (p) { return p !== path; });
+      markDirty(); return;
+    }
+    syncImgTools(fig); markDirty();
+    fig.scrollIntoView({ block: 'nearest' });
+  }
 
   /* ── DOM → 모델 (이 걸음이 정제다) ──────────────────────────────────────── */
   function sizeOf(fontEl) {
@@ -199,8 +255,8 @@
       var a = (el.style && el.style.textAlign) || el.getAttribute('align') || '';
       return a === 'center' || a === 'right' ? a : 'left';
     }
-    function walk(node, st, inBlock) {
-      if (node.nodeType === 3) { pushText(node.nodeValue.replace(/ /g, ' '), st); return; }
+    function walk(node, st) {
+      if (node.nodeType === 3) { pushText(node.nodeValue.replace(/ /g, ' '), st); return; }
       if (node.nodeType !== 1) return;
       var tag = node.tagName;
       if (tag === 'FIGURE' && node.classList.contains('ed-img')) {
@@ -211,7 +267,7 @@
         blocks.push(img); return;
       }
       if (tag === 'BR') { if (cur) pushText('\n', st); return; }
-      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IMG') return;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IMG' || node.classList.contains('ed-imgtools')) return;
       var next = { b: st.b, i: st.i, u: st.u, color: st.color, size: st.size };
       if (tag === 'B' || tag === 'STRONG') next.b = true;
       if (tag === 'I' || tag === 'EM') next.i = true;
@@ -226,15 +282,14 @@
       var isBlock = /^(DIV|P|H[1-6]|LI|BLOCKQUOTE|PRE|SECTION|ARTICLE|UL|OL)$/.test(tag);
       if (isBlock) {
         para(alignOf(node));
-        Array.prototype.forEach.call(node.childNodes, function (c) { walk(c, next, true); });
+        Array.prototype.forEach.call(node.childNodes, function (c) { walk(c, next); });
         flush();
         return;
       }
-      Array.prototype.forEach.call(node.childNodes, function (c) { walk(c, next, inBlock); });
+      Array.prototype.forEach.call(node.childNodes, function (c) { walk(c, next); });
     }
-    Array.prototype.forEach.call(root.childNodes, function (c) { walk(c, {}, false); });
+    Array.prototype.forEach.call(root.childNodes, function (c) { walk(c, {}); });
     flush();
-    // 빈 문단 정리(연속 빈 줄은 하나로)
     var out = [], blank = 0;
     blocks.forEach(function (b) {
       var empty = b.t === 'p' && b.runs.every(function (r) { return !r.text.trim(); });
@@ -244,7 +299,54 @@
     return { v: 1, blocks: out };
   }
 
-  /* ── 등록 ──────────────────────────────────────────────────────────────── */
+  /* ── 임시저장(이 브라우저) — 네이버의 임시저장처럼, 떠났다 돌아와도 이어 쓴다 ── */
+  var dirty = false, saveTimer = null;
+  function markDirty() { dirty = true; updatePlaceholder(); if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 1500); }
+  function saveDraft() {
+    try {
+      var html = root.innerHTML, title = $('#ed-title').value;
+      if (!title.trim() && !root.textContent.trim() && !root.querySelector('figure')) { localStorage.removeItem(DRAFT_KEY); $('#ed-draft').textContent = ''; return; }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: title, html: html, at: Date.now(), draftId: draftId, uploaded: uploaded }));
+      var d = new Date(); $('#ed-draft').textContent = '임시저장 ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    } catch (e) {}
+  }
+  function offerRestore() {
+    var bar = $('#ed-restore'); if (!bar) return;
+    var saved = null; try { saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) {}
+    if (!saved || !(saved.title || saved.html) || $('#ed-title').value || root.textContent.trim()) return;
+    bar.hidden = false;
+    $('#ed-restore-yes').onclick = function () {
+      $('#ed-title').value = saved.title || '';
+      root.innerHTML = saved.html || '';
+      // 도구 마크업은 최신으로 다시 붙인다(저장본에 옛 도구가 있어도 무시)
+      root.querySelectorAll('figure.ed-img').forEach(function (f) {
+        f.querySelectorAll('.ed-imgtools').forEach(function (t) { t.remove(); });
+        f.insertAdjacentHTML('beforeend', IMG_TOOLS);
+      });
+      if (saved.draftId) draftId = saved.draftId;
+      if (Array.isArray(saved.uploaded)) uploaded = saved.uploaded.slice();
+      bar.hidden = true; updatePlaceholder(); markDirty();
+    };
+    $('#ed-restore-no').onclick = function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} bar.hidden = true; };
+  }
+  function updatePlaceholder() { root.classList.toggle('blank', !root.textContent.trim() && !root.querySelector('figure')); }
+  root.addEventListener('input', markDirty);
+  $('#ed-title').addEventListener('input', markDirty);
+  updatePlaceholder();
+
+  /* ── 뉴스: 관련 링크 ────────────────────────────────────────────────────── */
+  var linkBtn = $('#ed-link-btn');
+  if (linkBtn) {
+    linkBtn.addEventListener('click', function () {
+      var v = window.prompt('관련 링크 (https://)', linkUrl || '');
+      if (v === null) return;
+      v = v.trim();
+      if (v && !/^https:\/\//.test(v)) { status('링크는 https:// 로 시작해야 합니다.', true); return; }
+      linkUrl = v || null; linkBtn.classList.toggle('on', !!linkUrl); status(linkUrl ? '관련 링크: ' + linkUrl : '관련 링크를 지웠습니다.');
+    });
+  }
+
+  /* ── 발행 — 확인 패널을 거친다 ─────────────────────────────────────────── */
   var submitting = false;
   $('#ed-submit').addEventListener('click', function () {
     if (submitting) return;
@@ -256,44 +358,60 @@
     var plain = Rich.richToPlainText(doc);
     if (!plain) { status('내용을 입력해 주세요.', true); root.focus(); return; }
     if (plain.length > 5000) { status('내용은 5,000자까지 쓸 수 있습니다. (현재 ' + plain.length + '자)', true); return; }
-    var hasFormat = doc.blocks.some(function (b) { return b.t === 'img' || b.align || b.runs.some(function (r) { return r.b || r.i || r.u || r.color || r.size; }); });
-    var link = isNews && $('#ed-link') && $('#ed-link').value.trim() ? $('#ed-link').value.trim() : null;
-    submitting = true; status('등록 중…');
-    $('#ed-submit').disabled = true;
-    App.requireMember(function () {
-      App.sb.rpc('hub_create_community_post', {
-        p_board_kind: PV.board, p_title: title, p_body: plain, p_image_paths: paths, p_link_url: link,
-        p_body_rich: hasFormat ? doc : null,
-      }).then(function (r) {
-        if (r.error) throw r.error;
-        var id = r.data && r.data.id;
-        uploaded = []; // 글에 귀속됐다 — 떠날 때 지우지 않는다
-        var next = isNews && $('#ed-web') && $('#ed-web').checked
-          ? App.sb.rpc('hub_set_news_web_publish', { p_post_id: id, p_publish: true })
-          : Promise.resolve({});
-        return next.then(function () {
-          dirty = false;
-          location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
-        });
-      }).catch(function (e) {
-        submitting = false; $('#ed-submit').disabled = false; status(errText(e), true);
-      });
-    });
-    // requireMember 가 로그인 다이얼로그로 빠지면 등록은 진행되지 않는다
-    setTimeout(function () { if (submitting && !App.session) { submitting = false; $('#ed-submit').disabled = false; status(''); } }, 300);
+    if (!App.session) { App.openAuth('login'); return; }
+    openPublishPanel(title, doc, paths, plain);
   });
 
-  /* ── 작성 중 이탈 경고 + 등록 안 한 업로드 정리 ───────────────────────── */
-  var dirty = false;
-  root.addEventListener('input', function () { dirty = true; });
-  $('#ed-title').addEventListener('input', function () { dirty = true; });
+  function openPublishPanel(title, doc, paths, plain) {
+    var d = document.createElement('dialog'); d.className = 'pv ned-pub';
+    var imgCount = paths.length;
+    d.innerHTML =
+      '<button class="x" data-x aria-label="닫기">×</button><h3>발행</h3>' +
+      '<div class="row"><div><b>' + esc(title) + '</b><span class="sub">' + plain.length + '자' + (imgCount ? ' · 사진 ' + imgCount + '장' : '') + '</span></div></div>' +
+      (isNews
+        ? '<div class="row"><div>웹에 공개<span class="sub">끄면 앱에서만 보입니다</span></div><label class="toggle"><input type="checkbox" id="pub-web"' + (webPublish ? ' checked' : '') + ' /><span></span></label></div>' +
+          '<div class="row" style="display:block"><div>관련 링크 (선택)</div><input type="url" id="pub-link" placeholder="https://" value="' + esc(linkUrl || '') + '" style="margin-top:8px" /></div>'
+        : '<div class="row"><div>익명으로 발행<span class="sub">다른 이용자에게는 글 안에서만 고정되는 6자리 코드로 보이고, 이 웹사이트에도 익명 그대로 공개됩니다.</span></div></div>') +
+      '<p class="pv-err" hidden></p>' +
+      '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">발행</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener('close', function () { d.remove(); });
+    d.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
+    d.showModal();
+    $('#pub-go', d).addEventListener('click', function () {
+      var err = $('.pv-err', d);
+      var link = null;
+      if (isNews) {
+        webPublish = $('#pub-web', d).checked;
+        link = ($('#pub-link', d).value || '').trim() || null;
+        if (link && !/^https:\/\//.test(link)) { err.textContent = '링크는 https:// 로 시작해야 합니다.'; err.hidden = false; return; }
+      }
+      var hasFormat = doc.blocks.some(function (b) { return b.t === 'img' || b.align || b.runs.some(function (r) { return r.b || r.i || r.u || r.color || r.size; }); });
+      submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status('발행 중…');
+      App.requireMember(function () {
+        App.sb.rpc('hub_create_community_post', {
+          p_board_kind: PV.board, p_title: title, p_body: plain, p_image_paths: paths, p_link_url: link,
+          p_body_rich: hasFormat ? doc : null,
+        }).then(function (r) {
+          if (r.error) throw r.error;
+          var id = r.data && r.data.id;
+          uploaded = []; // 글에 귀속됐다
+          try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+          var next = isNews && webPublish ? App.sb.rpc('hub_set_news_web_publish', { p_post_id: id, p_publish: true }) : Promise.resolve({});
+          return next.then(function () {
+            dirty = false;
+            location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
+          });
+        }).catch(function (e) {
+          submitting = false; $('#pub-go', d).disabled = false; err.textContent = errText(e); err.hidden = false; status('');
+        });
+      });
+    });
+  }
+
+  /* ── 이탈 경고 + 등록 안 한 업로드 정리 ────────────────────────────────── */
   window.addEventListener('beforeunload', function (ev) {
-    if (dirty && !submitting) { ev.preventDefault(); ev.returnValue = ''; }
-  });
-  window.addEventListener('pagehide', function () {
-    if (uploaded.length && !submitting) {
-      try { App.sb.storage.from(Rich.BUCKET).remove(uploaded.slice()); } catch (e) {}
-    }
+    if (dirty && !submitting) { saveDraft(); ev.preventDefault(); ev.returnValue = ''; }
   });
 
   // 개발 확인용(모의 서버 검증) — 직렬화 결과를 들여다볼 수 있게 노출. 데이터·권한과 무관.

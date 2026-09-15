@@ -32,6 +32,7 @@
     }
   }
   * { box-sizing:border-box; }
+  [hidden] { display:none !important; } /* display:flex/grid 를 준 요소도 hidden 속성이 이기게 */
   html { -webkit-text-size-adjust:100%; }
   body { margin:0; background:var(--bg); color:var(--ink);
          font:13px/1.55 "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
@@ -190,28 +191,78 @@
   @media (max-width:640px) { .rich figure.rimg.s-sm img { width:60%; } .rich figure.rimg.s-md img { width:100%; } }
 
 
-  /* ── 글쓰기 페이지(write.html) ── */
-  .ed { background:var(--surface); border-top:2px solid var(--brand); border-bottom:1px solid var(--line); margin-top:10px; }
-  .ed .row { padding:12px 14px; border-bottom:1px solid var(--line-soft); }
-  .ed input[type=text], .ed input[type=url] { width:100%; font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
-  .ed-bar { display:flex; flex-wrap:wrap; gap:4px; padding:8px 10px; border-bottom:1px solid var(--line-soft); background:var(--head); position:sticky; top:0; z-index:2; }
-  .ed-bar button, .ed-imgbar button { min-width:36px; min-height:36px; padding:0 10px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
-  .ed-bar button:hover, .ed-imgbar button:hover { border-color:var(--brand); }
-  .ed-bar .sep { width:1px; background:var(--line); margin:4px 4px; }
-  .ed-bar input[type=color] { width:36px; height:36px; padding:2px; border:1px solid var(--line); border-radius:6px; background:var(--surface); cursor:pointer; }
-  .ed-bar .lbl { align-self:center; font-size:12px; color:var(--sub); padding:0 4px; }
-  #ed-body { min-height:320px; padding:16px 14px 24px; font-size:15px; line-height:1.8; outline:none; overflow-wrap:anywhere; }
-  #ed-body:empty::before { content:attr(data-placeholder); color:var(--sub); }
-  #ed-body figure.ed-img { cursor:pointer; border:2px solid transparent; border-radius:8px; padding:2px; }
-  #ed-body figure.ed-img.sel { border-color:var(--brand); }
-  .ed-imgbar { display:flex; flex-wrap:wrap; gap:4px; padding:8px 10px; background:var(--accent-soft); border-bottom:1px solid var(--line-soft); align-items:center; }
-  .ed-imgbar .lbl { font-size:12px; color:var(--on-accent); padding:0 4px; font-weight:700; }
-  .ed-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; }
-  #ed-status { font-size:13px; color:var(--sub); } #ed-status.err { color:#B4372E; }
-  .ed-gate { padding:44px 14px; text-align:center; color:var(--sub); line-height:1.7; }
-  .ed-gate .btn { margin-top:12px; }
-  .ed .pv-check { padding:0; }
-  @media (max-width:640px) { #ed-body { min-height:260px; } .ed-bar { gap:3px; padding:6px 8px; } .ed-bar button { min-width:40px; min-height:40px; padding:0 8px; } }
+  /* ── 글쓰기 페이지(write.html) — 네이버 스마트에디터 참고: 헤더(발행) + 2줄 도구 막대 + 넓은 문서 ── */
+  .ned { background:var(--surface); border:1px solid var(--line); border-radius:8px; margin-top:10px; overflow:hidden; }
+  .ned-top { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line-soft); }
+  .ned-top .board { font-weight:700; font-size:14px; }
+  .ned-top .back { color:var(--sub); font-size:13px; }
+  .ned-top .spacer { flex:1; }
+  .ned-top .draft { font-size:12px; color:var(--sub); }
+  .ned-publish { min-height:36px; padding:0 18px; border-radius:6px; border:none; background:var(--brand); color:#fff; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+  .ned-publish:disabled { opacity:.6; cursor:default; }
+  .ned-tools { position:sticky; top:0; z-index:3; background:var(--surface); border-bottom:1px solid var(--line-soft); }
+  .ned-row { display:flex; align-items:center; gap:2px; padding:6px 10px; overflow-x:auto; }
+  .ned-row + .ned-row { border-top:1px solid var(--line-soft); }
+  .ned-row .sep { width:1px; height:22px; background:var(--line-soft); margin:0 6px; flex:none; }
+  .ned-row button, .ned-row select { min-height:36px; border:none; background:transparent; color:var(--ink); font:inherit; font-size:13px; border-radius:6px; padding:0 9px; cursor:pointer; white-space:nowrap; flex:none; }
+  .ned-row button:hover, .ned-row select:hover { background:var(--bg); }
+  .ned-row button.on { background:var(--brand-soft); color:var(--brand); }
+  .ned-row .ico { display:inline-flex; flex-direction:column; align-items:center; gap:2px; min-width:52px; min-height:48px; justify-content:center; font-size:11px; color:var(--sub); }
+  .ned-row .ico svg { width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; color:var(--ink); }
+  .ned-row select { border:1px solid var(--line-soft); padding:0 8px; min-width:92px; -webkit-appearance:none; appearance:none; background:var(--surface); }
+  .ned-row .b { font-weight:800; } .ned-row .i { font-style:italic; } .ned-row .u { text-decoration:underline; }
+  .ned-color { position:relative; }
+  .ned-color .swatch { display:inline-block; width:14px; height:3px; margin-left:3px; vertical-align:-3px; background:#00361a; border-radius:1px; }
+  .ned-pal { position:absolute; top:40px; left:0; z-index:5; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; display:grid; grid-template-columns:repeat(8, 24px); gap:6px; box-shadow:0 8px 24px rgba(0,0,0,.14); }
+  .ned-pal button { width:24px; height:24px; min-height:24px; border-radius:4px; border:1px solid rgba(0,0,0,.12); padding:0; }
+  .ned-pal .custom { grid-column:1 / -1; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--sub); padding-top:4px; border-top:1px solid var(--line-soft); }
+  .ned-pal .custom input { width:28px; height:28px; padding:0; border:1px solid var(--line); border-radius:4px; background:none; }
+  .ned-doc { max-width:880px; margin:0 auto; padding:26px 20px 60px; }
+  .ned-doc #ed-title { width:100%; border:none; background:transparent; color:var(--ink); font:inherit; font-size:28px; font-weight:700; line-height:1.3; padding:6px 0 14px; border-bottom:1px solid var(--line-soft); margin-bottom:18px; outline:none; letter-spacing:-0.4px; }
+  .ned-doc #ed-title::placeholder { color:var(--line); }
+  #ed-body { min-height:420px; font-size:16px; line-height:1.9; outline:none; overflow-wrap:anywhere; color:var(--ink); }
+  #ed-body:empty::before, #ed-body.blank::before { content:attr(data-placeholder); color:var(--sub); opacity:.7; pointer-events:none; }
+  #ed-body figure.ed-img { position:relative; cursor:pointer; margin:18px 0; }
+  #ed-body figure.ed-img img { outline:2px solid transparent; outline-offset:2px; transition:outline-color .12s; }
+  #ed-body figure.ed-img.sel img { outline-color:var(--brand); }
+  #ed-body figure.ed-img .ed-imgtools { display:none; position:absolute; top:-44px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--surface); border-radius:8px; padding:4px; gap:2px; box-shadow:0 6px 18px rgba(0,0,0,.25); white-space:nowrap; z-index:4; }
+  #ed-body figure.ed-img.sel .ed-imgtools { display:flex; }
+  .ed-imgtools button { min-height:32px; padding:0 9px; border:none; border-radius:6px; background:transparent; color:inherit; font:inherit; font-size:12px; cursor:pointer; }
+  .ed-imgtools button:hover, .ed-imgtools button.on { background:rgba(255,255,255,.18); }
+  .ed-imgtools .sep { width:1px; background:rgba(255,255,255,.25); margin:4px 3px; }
+  .ned-status { max-width:880px; margin:0 auto; padding:0 20px 20px; font-size:13px; color:var(--sub); min-height:20px; }
+  .ned-status.err { color:#B4372E; }
+  .ed-gate { padding:60px 20px; text-align:center; color:var(--sub); line-height:1.8; }
+  .ed-gate .btn { margin-top:14px; }
+  /* 발행 패널 */
+  dialog.pv.ned-pub { width:min(440px, calc(100vw - 32px)); }
+  .ned-pub h3 { margin:0 0 12px; font-size:17px; }
+  .ned-pub .row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line-soft); font-size:14px; }
+  .ned-pub .row:first-of-type { border-top:none; }
+  .ned-pub .row .sub { display:block; font-size:12px; color:var(--sub); margin-top:2px; }
+  .ned-pub input[type=url] { width:100%; font:inherit; font-size:15px; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
+  .ned-pub .foot { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+  .ned-pub .foot .btn { min-height:44px; padding:0 18px; }
+  .ned-pub .toggle { position:relative; width:44px; height:26px; flex:none; }
+  .ned-pub .toggle input { opacity:0; width:0; height:0; }
+  .ned-pub .toggle span { position:absolute; inset:0; background:var(--line); border-radius:13px; transition:.15s; }
+  .ned-pub .toggle span::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; background:#fff; border-radius:50%; transition:.15s; }
+  .ned-pub .toggle input:checked + span { background:var(--brand); }
+  .ned-pub .toggle input:checked + span::after { transform:translateX(18px); }
+  /* 임시저장 복원 바 */
+  .ned-restore { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 auto; max-width:880px; padding:10px 20px; background:var(--accent-soft); color:var(--on-accent); font-size:13px; }
+  .ned-restore .lnk { color:inherit; font-weight:700; margin-left:10px; }
+  @media (max-width:640px) {
+    .ned { border-left:none; border-right:none; border-radius:0; margin:0 -12px; }
+    .ned-doc { padding:18px 14px 50px; }
+    .ned-doc #ed-title { font-size:22px; }
+    #ed-body { min-height:300px; font-size:16px; }
+    .ned-row .ico { min-width:48px; }
+    .ned-status { padding:0 14px 16px; }
+    /* 사진 도구: 화면보다 넓어지지 않게 두 줄로 접는다 */
+    #ed-body figure.ed-img .ed-imgtools { left:0; right:0; transform:none; top:-84px; flex-wrap:wrap; justify-content:center; max-width:100%; }
+    .ed-imgtools .sep { display:none; }
+  }
 
   @media (max-width:640px) {
     body { font-size:14px; }
@@ -253,9 +304,9 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://lee-joon.github.io/pickleverse-web","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":false,"page":1,"staticIds":[],"total":0,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://lee-joon.github.io/pickleverse-web/assets/rich.mjs?v=414d269ce6"></script>
-    <script src="https://lee-joon.github.io/pickleverse-web/assets/app.js?v=414d269ce6" defer></script>
-    <script src="https://lee-joon.github.io/pickleverse-web/assets/editor.js?v=414d269ce6" defer></script>
+    <script type="module" src="https://lee-joon.github.io/pickleverse-web/assets/rich.mjs?v=189fffbc65"></script>
+    <script src="https://lee-joon.github.io/pickleverse-web/assets/app.js?v=189fffbc65" defer></script>
+    <script src="https://lee-joon.github.io/pickleverse-web/assets/editor.js?v=189fffbc65" defer></script>
   </head>
   <body>
     <div class="top">
@@ -279,42 +330,56 @@
       </div>
     </div>
     <main class="wrap">
-      <section class="ed" aria-label="글쓰기">
+      <section class="ned" aria-label="글쓰기">
         <div class="ed-gate" id="ed-gate">
           로그인하면 바로 글을 쓸 수 있습니다.<br />뉴스는 운영자 계정만 등록할 수 있습니다.
           <br /><button type="button" class="btn primary" id="ed-gate-login">로그인</button>
         </div>
         <div id="ed-form" hidden>
-          <div class="row"><input type="text" id="ed-title" maxlength="100" placeholder="제목" autocomplete="off" /></div>
-          <div class="ed-bar" role="toolbar" aria-label="서식">
-            <button type="button" data-cmd="bold" title="굵게"><b>굵게</b></button><button type="button" data-cmd="italic" title="기울임"><i>기울임</i></button><button type="button" data-cmd="underline" title="밑줄"><u>밑줄</u></button>
-            <span class="sep"></span>
-            <span class="lbl">크기</span><button type="button" data-cmd="fontSize" data-val="sm" title="작은 글자">작게</button><button type="button" data-cmd="fontSize" data-val="md" title="보통 글자">보통</button><button type="button" data-cmd="fontSize" data-val="lg" title="큰 글자">크게</button><button type="button" data-cmd="fontSize" data-val="xl" title="아주 큰 글자">아주 크게</button>
-            <span class="sep"></span>
-            <span class="lbl">색</span><input type="color" id="ed-color" value="#00361a" title="글자 색" />
-            <span class="sep"></span>
-            <button type="button" data-cmd="justifyLeft" title="왼쪽 정렬">왼쪽</button><button type="button" data-cmd="justifyCenter" title="가운데 정렬">가운데</button><button type="button" data-cmd="justifyRight" title="오른쪽 정렬">오른쪽</button>
-            <span class="sep"></span>
-            <button type="button" id="ed-add-image" title="사진 넣기 (20MB 이하, 최대 10장)">사진</button>
-            <input type="file" id="ed-file" accept="image/*" multiple hidden />
+          <div class="ned-top">
+            <a class="back" href="https://lee-joon.github.io/pickleverse-web/">‹ 목록</a>
+            <span class="board">뉴스 게시판</span>
+            <span class="spacer"></span>
+            <span class="draft" id="ed-draft"></span>
+            <button type="button" class="ned-publish" id="ed-submit">발행</button>
           </div>
-          <div class="ed-imgbar" id="ed-imgbar" hidden>
-            <span class="lbl">사진</span>
-            <button type="button" data-img="size" data-val="sm">작게</button><button type="button" data-img="size" data-val="md">보통</button><button type="button" data-img="size" data-val="full">꽉 차게</button>
-            <span class="sep"></span>
-            <button type="button" data-img="align" data-val="left">왼쪽</button><button type="button" data-img="align" data-val="center">가운데</button><button type="button" data-img="align" data-val="right">오른쪽</button>
-            <span class="sep"></span>
-            <button type="button" data-img="up">위로</button><button type="button" data-img="down">아래로</button>
-            <span class="sep"></span>
-            <button type="button" data-img="remove">삭제</button>
+          <div class="ned-tools">
+            <div class="ned-row" role="toolbar" aria-label="삽입">
+              <button type="button" class="ico" id="ed-add-image" title="사진 넣기 (20MB 이하, 최대 10장)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>사진</button>
+              <button type="button" class="ico" id="ed-link-btn" title="관련 링크"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>링크</button>
+              <span class="sep"></span>
+              <button type="button" class="ico" data-cmd="undo" title="되돌리기"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>되돌리기</button>
+              <button type="button" class="ico" data-cmd="redo" title="다시 실행"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>다시 실행</button>
+              <input type="file" id="ed-file" accept="image/*" multiple hidden />
+            </div>
+            <div class="ned-row" role="toolbar" aria-label="서식">
+              <select id="ed-size" title="글자 크기" aria-label="글자 크기">
+                <option value="sm">작게</option><option value="md" selected>보통</option><option value="lg">크게</option><option value="xl">아주 크게</option>
+              </select>
+              <span class="sep"></span>
+              <button type="button" class="b" data-cmd="bold" title="굵게">B</button>
+              <button type="button" class="i" data-cmd="italic" title="기울임">I</button>
+              <button type="button" class="u" data-cmd="underline" title="밑줄">U</button>
+              <span class="sep"></span>
+              <span class="ned-color">
+                <button type="button" id="ed-color-btn" title="글자색">글자색<span class="swatch" id="ed-color-swatch"></span></button>
+                <div class="ned-pal" id="ed-pal" hidden>
+                  <button type="button" data-color="#1f2421" style="background:#1f2421" title="#1f2421"></button><button type="button" data-color="#5c6360" style="background:#5c6360" title="#5c6360"></button><button type="button" data-color="#00361a" style="background:#00361a" title="#00361a"></button><button type="button" data-color="#2e7d32" style="background:#2e7d32" title="#2e7d32"></button><button type="button" data-color="#1565c0" style="background:#1565c0" title="#1565c0"></button><button type="button" data-color="#0288d1" style="background:#0288d1" title="#0288d1"></button><button type="button" data-color="#6a1b9a" style="background:#6a1b9a" title="#6a1b9a"></button><button type="button" data-color="#ad1457" style="background:#ad1457" title="#ad1457"></button><button type="button" data-color="#b4372e" style="background:#b4372e" title="#b4372e"></button><button type="button" data-color="#e65100" style="background:#e65100" title="#e65100"></button><button type="button" data-color="#f9a825" style="background:#f9a825" title="#f9a825"></button><button type="button" data-color="#8d6e63" style="background:#8d6e63" title="#8d6e63"></button><button type="button" data-color="#ffffff" style="background:#ffffff" title="#ffffff"></button><button type="button" data-color="#c1c9bf" style="background:#c1c9bf" title="#c1c9bf"></button><button type="button" data-color="#00bcd4" style="background:#00bcd4" title="#00bcd4"></button><button type="button" data-color="#7cb342" style="background:#7cb342" title="#7cb342"></button>
+                  <label class="custom">직접 선택 <input type="color" id="ed-color" value="#00361a" /></label>
+                </div>
+              </span>
+              <span class="sep"></span>
+              <button type="button" data-cmd="justifyLeft" title="왼쪽 정렬">왼쪽</button>
+              <button type="button" data-cmd="justifyCenter" title="가운데 정렬">가운데</button>
+              <button type="button" data-cmd="justifyRight" title="오른쪽 정렬">오른쪽</button>
+            </div>
           </div>
-          <div id="ed-body" class="rich" contenteditable="true" data-placeholder="내용을 입력하세요. 사진은 위 '사진' 버튼으로 넣고, 사진을 누르면 크기와 위치를 바꿀 수 있습니다."></div>
-          <div class="row"><input type="url" id="ed-link" placeholder="관련 링크 (선택) https://" /></div>
-          <div class="row"><label class="pv-check"><input type="checkbox" id="ed-web" checked /> 웹에 공개</label></div>
-          <div class="ed-foot">
-            <span id="ed-status"></span>
-            <button type="button" class="btn primary" id="ed-submit">등록</button>
+          <div class="ned-restore" id="ed-restore" hidden>임시 저장된 글이 있습니다.<span><button type="button" class="lnk" id="ed-restore-yes">불러오기</button><button type="button" class="lnk" id="ed-restore-no">지우기</button></span></div>
+          <div class="ned-doc">
+            <input type="text" id="ed-title" maxlength="100" placeholder="제목" autocomplete="off" />
+            <div id="ed-body" class="rich" contenteditable="true" data-placeholder="내용을 입력하세요. 사진은 위 '사진' 버튼으로 넣고, 사진을 누르면 정렬과 크기를 바꿀 수 있습니다."></div>
           </div>
+          <div class="ned-status" id="ed-status"></div>
         </div>
       </section>
       <div class="promo">
