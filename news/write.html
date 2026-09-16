@@ -95,7 +95,7 @@
   table.list th { background:var(--head); color:var(--sub); font-weight:500; font-size:12px; padding:8px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
   table.list td { padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:middle; }
   table.list tr:hover td { background:var(--row-hover); }
-  table.list .num, table.list .date { font-variant-numeric:tabular-nums; }
+  table.list .num, table.list .date, table.list .views { font-variant-numeric:tabular-nums; }
   /* 제목은 14px/500, 메타는 12px/400 — 크기·굵기·색 3축으로 스캔 위계를 만든다(행 높이는 그대로). */
   table.list .num { width:56px; text-align:center; color:var(--sub); font-size:12px; }
   table.list .tit { text-align:left; overflow:hidden; }
@@ -103,6 +103,7 @@
   table.list .tit .cmt { color:var(--brand); font-weight:700; font-size:12px; margin-left:5px; }
   table.list .who { width:96px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list .date { width:74px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
+  table.list .views { width:52px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list tr.notice td { background:var(--accent-soft); }
   table.list tr.notice .num { color:var(--on-accent); font-weight:700; }
   table.list tr.notice .tit a { font-weight:700; }
@@ -318,7 +319,8 @@
     table.list .tit { flex:1 0 100%; order:-1; overflow:visible; }
     table.list .tit a { display:inline; max-width:none; white-space:normal; overflow:visible; font-size:15px; font-weight:500; line-height:1.5; }
     table.list .tit .cmt { font-size:13px; }
-    table.list .who, table.list .date { font-size:12px; color:var(--sub); text-align:left; width:auto; }
+    table.list .who, table.list .date, table.list .views { font-size:12px; color:var(--sub); text-align:left; width:auto; }
+    table.list .views::before { content:"조회 "; }
     table.list tr.notice { background:var(--accent-soft); }
     table.list tr.notice td { background:transparent; }
     table.list tr.notice .tit a::before { content:"공지"; display:inline-block; font-size:11px; font-weight:700; color:var(--on-accent); background:var(--surface); border:1px solid var(--on-accent); padding:0 6px; border-radius:4px; margin-right:6px; vertical-align:1px; }
@@ -338,11 +340,11 @@
   }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","post":null,"view":false,"page":1,"staticIds":[],"total":0,"write":true};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","oauth":["google","kakao"],"post":null,"view":false,"page":1,"staticIds":[],"total":0,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=0724bd992d"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=0724bd992d" defer></script>
-    <script src="https://picklehubkorea.com/assets/editor.js?v=0724bd992d" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=05957f6164"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=05957f6164" defer></script>
+    <script src="https://picklehubkorea.com/assets/editor.js?v=05957f6164" defer></script>
   </head>
   <body>
     <div class="top">

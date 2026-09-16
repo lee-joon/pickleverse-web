@@ -11,7 +11,7 @@
  * is_mine 하나로만 알 수 있고, 이 스크립트는 다른 사람의 프로필을 조회하는 경로가 없다.
  *
  * 의존성: supabase-js UMD(전역 `supabase`) — 생성기가 jsDelivr 핀 버전 + SRI 로 로드한다.
- * 설정: window.PV = { url, key, site, board, post, view, page, staticIds, total, terms, privacy, legal, store }
+ * 설정: window.PV = { url, key, site, board, post, view, page, staticIds, total, terms, privacy, legal, store, oauth }
  */
 (function () {
   'use strict';
@@ -144,14 +144,22 @@
     }
   }
 
+  /* 소셜 로그인 버튼 — 어떤 제공자를 켤지는 생성기(PV.oauth)가 정한다.
+     애플은 Supabase 에 OAuth 비밀키가 들어가야 동작해서 준비되기 전에는 빠진다. */
+  var OAUTH_LABELS = { google: '구글로 계속하기', kakao: '카카오로 계속하기', apple: 'Apple로 계속하기' };
+  function socialButtons() {
+    var list = (PV.oauth && PV.oauth.length ? PV.oauth : ['google', 'kakao'])
+      .filter(function (k) { return OAUTH_LABELS[k]; });
+    return list.map(function (k) {
+      return '<button type="button" data-oauth="' + k + '">' + OAUTH_LABELS[k] + '</button>';
+    }).join('');
+  }
+
   function openAuth(mode) {
     var d = dialog(
       '<button class="x" data-x aria-label="닫기">×</button>' +
       '<div class="pv-tabs"><button type="button" data-tab="login">로그인</button><button type="button" data-tab="signup">회원가입</button></div>' +
-      '<div class="pv-social">' +
-        '<button type="button" data-oauth="google">구글로 계속하기</button>' +
-        '<button type="button" data-oauth="kakao">카카오로 계속하기</button>' +
-      '</div><div class="pv-or">또는 이메일로</div>' +
+      '<div class="pv-social">' + socialButtons() + '</div><div class="pv-or">또는 이메일로</div>' +
       '<form class="pv-form" id="pv-auth">' +
         '<label>이메일<input name="email" type="email" autocomplete="email" required /></label>' +
         '<label>비밀번호<input name="password" type="password" autocomplete="current-password" minlength="6" required /></label>' +
@@ -322,6 +330,8 @@
             var cmt = row.querySelector('.cmt');
             if (p.comment_count > 0) { if (!cmt) { cmt = el('<span class="cmt"></span>'); row.querySelector('.tit').appendChild(cmt); } cmt.textContent = '[' + p.comment_count + ']'; }
             else if (cmt) cmt.remove();
+            var vw = row.querySelector('.views');
+            if (vw && typeof p.view_count === 'number') vw.textContent = p.view_count;
           }
         });
         // 뉴스는 운영자가 "웹 공개"를 켠 글만 나가므로 신규 행을 얹지 않는다(anon RPC 는 미공개 뉴스도 준다).
@@ -341,6 +351,7 @@
               '<td class="num">' + (total - i) + '</td>' +
               '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
               '<td class="who">익명 ' + communityAlias(p.id, 0) + '</td><td class="date">' + esc(fmtList(p.published_at)) + '</td>' +
+              '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
             '</tr>'));
         });
         var anchor = tbody.querySelector('tr:not(.notice)');
@@ -419,10 +430,31 @@
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
         '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b></span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
+        '<span>조회 <b id="pv-views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</b></span>' +
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';
+  }
+  // 읽기 응답과 증가 응답이 경쟁한다 — 늦게 온 낮은 값이 화면을 되돌리지 않게 단조 증가로만 쓴다.
+  function setViews(n) {
+    if (typeof n !== 'number') return;
+    var v = $('#pv-views'); if (!v) return;
+    var cur = parseInt(v.textContent, 10);
+    if (!isNaN(cur) && n < cur) return;
+    v.textContent = n;
+  }
+  /* 조회수 +1 — 탭 세션당 글 하나에 한 번. loadPost() 는 로그인 이벤트와 댓글 작성
+     뒤에도 다시 도는데 거기 붙이면 한 사람이 여러 번 세진다. 실패는 조용히 넘긴다. */
+  var viewBumped = false;
+  function bumpView() {
+    if (!postId || viewBumped) return;
+    viewBumped = true;
+    var key = 'pv-v-' + postId;
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
+    sb.rpc('hub_community_bump_post_view', { p_post_id: postId }).then(function (r) {
+      if (!r.error) setViews(r.data);
+    });
   }
   function loadPost() {
     if (!postId) return;
@@ -435,6 +467,7 @@
         }
         if (PV.view) renderArticle(data.post);
         renderComments(data.comments || []);
+        setViews(data.post.view_count);
         var acts = $('#pv-postactions');
         if (acts) {
           acts.innerHTML = data.post.is_mine
@@ -509,6 +542,6 @@
     if (session) checkProfile();
     readyResolve();
     refreshList();
-    if (postId) { renderCommentForm(); loadPost(); }
+    if (postId) { renderCommentForm(); loadPost(); bumpView(); }
   });
 })();
