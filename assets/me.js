@@ -1,14 +1,17 @@
 /*
  * 내 정보 (me.html) — 계정·회원 정보 확인과 수정.
  *
- * 허브 앱의 설정 > 회원정보 수정(HubEditProfileScreen)과 같은 항목·같은 RPC 를 쓴다.
- * 국적·이름·성별·출생연도·연락처는 `complete_global_profile`, 닉네임은 `update_my_profile`.
+ * 허브 앱의 설정 > 회원정보 수정(HubEditProfileScreen)과 같은 항목·같은 RPC 를 쓴다 —
+ * 국적·이름·성별·출생연도·연락처는 `complete_global_profile`.
+ *
+ * 닉네임은 **의도적으로 없다**. 허브 앱에는 닉네임 입력·표시가 아예 없고(덮어쓰기를
+ * 막으려고 값을 읽어 되돌려 보내기만 한다) 표시 이름은 실명이다 — 닉네임은 클럽 앱
+ * 개념이다(프로드 프로필 44행 중 닉네임 보유 2건, 2026-09-16). 웹에서 만들지 않으면
+ * `update_my_profile` 을 아예 부르지 않게 되어 아바타·DUPR 덮어쓰기 위험도 함께 사라진다.
  *
  * ⚠ 두 RPC 모두 **보낸 값으로 통째로 덮어쓴다**(null 을 보내면 지워진다).
  *   - complete_global_profile 은 거주지(region/city/district)·소속까지 무조건 UPDATE 하므로,
  *     웹 폼이 수집하지 않는 값(앱에서 채워진 값)은 읽어둔 현재 값을 그대로 되돌려 보낸다.
- *   - update_my_profile 은 avatar_path·dupr_rating 도 함께 덮으므로 같은 방식으로 되돌린다
- *     (DUPR 은 연동 계정이면 서버가 무시한다 — 마이그 392).
  *   그래서 이 화면은 "읽기 → 폼 → 읽은 값과 합쳐 전송" 순서를 반드시 지킨다.
  *
  * 익명성: 여기서 다루는 값은 전부 본인 행이다. 커뮤니티 표시명과는 무관하고,
@@ -44,13 +47,14 @@
       return d.getFullYear() + '.' + p2(d.getMonth() + 1) + '.' + p2(d.getDate());
     }
 
-    /* 이 화면에서만 나오는 서버 문구 — 커뮤니티 레이어(app.js)는 표시명 토큰을 담지 않는다
-       (communityAnonymity.test 가 app.js 에서 nickname 류 토큰을 금지한다). */
+    /* 이 화면에서만 나오는 서버 문구. */
     var ME_ERR = [
-      ['Invalid nickname', '닉네임은 2~24자여야 합니다.'],
       ['already linked', '그 수단은 이미 다른 계정에 붙어 있습니다. 그 수단으로 로그인하면 그 계정으로 들어갑니다.'],
       ['already exists', '그 수단은 이미 다른 계정에 붙어 있습니다. 그 수단으로 로그인하면 그 계정으로 들어갑니다.'],
       ['manual linking', '로그인 수단 연결이 꺼져 있습니다. 운영자에게 알려 주세요.'],
+      ['dupr_account_already_linked', '그 DUPR 계정은 이미 다른 회원에 연결돼 있습니다.'],
+      ['dupr_token_verification_failed', 'DUPR 인증을 확인하지 못했습니다. 다시 로그인해 주세요.'],
+      ['dupr_not_configured', 'DUPR 연동 설정이 아직 준비되지 않았습니다. 운영자에게 알려 주세요.'],
     ];
     function emsg(e) {
       var raw = (e && (e.message || e.error_description || e.msg)) || String(e || '');
@@ -91,7 +95,16 @@
     }
 
     /* 현재 값 — 폼이 수집하지 않는 필드까지 전부 들고 있어야 저장이 지우지 않는다. */
-    var row = null, prof = null;
+    var row = null, prof = null, dupr = { linked: false };
+
+    /* DUPR SSO 가 부모 창으로 결과를 쏘는 출처. 규정상 임베드 iframe 이 유일한 경로라
+       (docs/dupr-api.md §1) 우리 페이지가 남의 message 를 받아 처리할 수 있는 상태가 된다 —
+       서버가 토큰 소유를 재검증하긴 하지만, 출처를 먼저 막는 게 순서다. dupr.gg 는
+       mydupr.com 으로 302 되므로 최종 출처까지 함께 허용한다(실측). */
+    var DUPR_ORIGINS = [
+      'https://dupr.gg', 'https://www.dupr.gg', 'https://mydupr.com', 'https://www.mydupr.com',
+      'https://dashboard.dupr.com', 'https://uat.dupr.gg', 'https://uat.mydupr.com',
+    ];
 
     function load() {
       var uid = App.session.user.id;
@@ -102,11 +115,13 @@
           'affiliation_note,platform_terms_version,platform_terms_accepted_at,privacy_policy_version,' +
           'privacy_policy_accepted_at,hub_visibility_opt_in,created_at',
         ).eq('id', uid).maybeSingle(),
-        sb.from('user_profiles').select('nickname,avatar_path,dupr_rating').eq('user_id', uid).maybeSingle(),
+        sb.from('user_profiles').select('dupr_rating').eq('user_id', uid).maybeSingle(),
+        sb.rpc('dupr_my_link_status'),
       ]).then(function (res) {
         if (res[0].error) { bodyEl.innerHTML = '<p class="me-loading">회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>'; return; }
         row = res[0].data || {};
         prof = (res[1] && res[1].data) || {};
+        dupr = (res[2] && !res[2].error && res[2].data) || { linked: false };
         render();
       });
     }
@@ -130,8 +145,10 @@
           '<dl class="me-facts">' +
             '<div><dt>이메일</dt><dd>' + esc(email || '—') + '</dd></div>' +
             '<div><dt>로그인 수단</dt><dd>' + esc(provs.map(function (p) { return PROVIDERS[p] || p; }).join(', ') || '—') +
+              // 평소엔 링크 한 줄로 접어 둔다 — 대부분은 쓸 일이 없고, 계정 카드가 버튼으로 무거워진다.
               (miss.length
-                ? '<div class="me-link">' +
+                ? '<button type="button" class="lnk me-more" data-more="link">다른 수단 연결</button>' +
+                  '<div class="me-link" data-more-panel="link" hidden>' +
                     miss.map(function (k) {
                       return '<button type="button" class="btn" data-link="' + k + '">' + esc(PROVIDERS[k]) + ' 연결</button>';
                     }).join('') +
@@ -172,16 +189,18 @@
         '</section>' +
 
         '<section class="me-card">' +
-          '<h2>앱 프로필</h2>' +
-          '<p class="pv-note">닉네임은 클럽 앱에서 같은 클럽 회원에게 보이는 이름입니다. 커뮤니티 글에는 쓰이지 않습니다.</p>' +
-          '<form class="pv-form" id="me-nick">' +
-            '<label>닉네임<input name="nickname" type="text" maxlength="24" placeholder="2~24자" value="' + esc(prof.nickname || '') + '" /></label>' +
-            '<p class="pv-err" hidden></p>' +
-            '<div class="me-actions"><button type="submit" class="btn primary">저장</button><span class="me-ok" hidden>저장했습니다.</span></div>' +
-          '</form>' +
+          '<h2>DUPR</h2>' +
           '<dl class="me-facts">' +
-            '<div><dt>DUPR</dt><dd>' + esc(prof.dupr_rating == null ? '미설정' : String(prof.dupr_rating)) +
-              '<small>DUPR 연동과 레이팅은 앱에서 관리합니다.</small></dd></div>' +
+            '<div><dt>레이팅</dt><dd>' + esc(prof.dupr_rating == null ? '미설정' : String(prof.dupr_rating)) +
+              (dupr.linked
+                ? '<small>DUPR ' + esc(dupr.duprId || '') + ' 연결됨. 레이팅은 DUPR 이 갱신하므로 직접 고칠 수 없습니다.</small>' +
+                  (PV.dupr ? '<div class="me-link"><button type="button" class="btn danger" data-dupr="unlink">연동 해제</button></div>' : '')
+                : '<small>DUPR 계정을 연결하면 레이팅이 자동으로 들어오고 계속 갱신됩니다.</small>' +
+                  (PV.dupr
+                    ? '<div class="me-link"><button type="button" class="btn" data-dupr="link">DUPR 연동</button>' +
+                      '<small>DUPR 로그인 창이 열립니다. 계정이 없으면 DUPR 앱·웹에서 먼저 가입해 주세요.</small></div>'
+                    : '<div class="me-link"><small>연동은 앱에서 할 수 있습니다.</small></div>')) +
+            '</dd></div>' +
           '</dl>' +
         '</section>' +
 
@@ -211,7 +230,111 @@
       form.querySelectorAll('button,input,select').forEach(function (n) { n.disabled = !!on; });
     }
 
+    /* ── DUPR 연동 (docs/dupr-api.md §1) ─────────────────────────────────
+       규정상 SSO 임베드 iframe 이 유일한 연결 경로다 — DUPR ID 수기 입력 연동은
+       만들면 안 된다. 로그인+동의가 끝나면 페이지가 부모 창으로 message 를 쏘고,
+       그 토큰을 dupr-link Edge 에 넘기면 서버가 소유를 재검증한 뒤 저장하고
+       RATING 웹훅을 구독한다(레이팅은 그때부터 서버가 채운다). ── */
+    function invokeDuprLink(body) {
+      return sb.auth.getSession().then(function (r) {
+        var token = r && r.data && r.data.session && r.data.session.access_token;
+        return sb.functions.invoke('dupr-link', {
+          body: body,
+          headers: token ? { Authorization: 'Bearer ' + token } : undefined,
+        });
+      });
+    }
+    /* 4xx 는 supabase-js 가 error 로 주고 사유는 응답 본문에 있다(앱 duprService 와 같은 처리). */
+    function duprFailure(res) {
+      var payload = (res && res.data) || {};
+      if (payload.error) return Promise.resolve(payload.error);
+      var ctx = res && res.error && res.error.context;
+      if (ctx && typeof ctx.json === 'function') {
+        return ctx.json().then(function (b) { return (b && b.error) || 'link_failed'; })
+          .catch(function () { return 'link_failed'; });
+      }
+      return Promise.resolve('link_failed');
+    }
+
+    function openDuprSso() {
+      if (!PV.dupr || !PV.dupr.clientKey) return;
+      var url = PV.dupr.ssoBase + '/login-external-app/' + btoa(PV.dupr.clientKey);
+      var d = document.createElement('dialog');
+      d.className = 'pv pv-wide';
+      d.innerHTML = '<button class="x" data-x aria-label="닫기">×</button><h3>DUPR 연동</h3>' +
+        '<p class="pv-note">DUPR 계정으로 로그인하고 정보 제공에 동의하면 연결됩니다. 비밀번호는 DUPR 화면에만 입력되고 저희 쪽에 저장되지 않습니다.</p>' +
+        '<div class="me-sso"><iframe title="DUPR 로그인" src="' + esc(url) + '"></iframe></div>' +
+        '<p class="pv-err" hidden></p><p class="me-sso-status" hidden>연결하는 중…</p>';
+      document.body.appendChild(d);
+
+      var handled = false;
+      function setStatus(text) {
+        var n = d.querySelector('.me-sso-status');
+        if (n) { n.textContent = text || ''; n.hidden = !text; }
+      }
+      function setError(text) {
+        var n = d.querySelector('.pv-err');
+        if (n) { n.textContent = text || ''; n.hidden = !text; }
+      }
+      function onMessage(ev) {
+        if (handled) return;
+        if (DUPR_ORIGINS.indexOf(ev.origin) < 0) return; // 남의 창이 쏜 토큰은 받지 않는다
+        var msg = ev.data;
+        if (typeof msg === 'string') { try { msg = JSON.parse(msg); } catch (e) { return; } }
+        if (!msg || !msg.userToken || !msg.refreshToken || !msg.duprId) return; // SSO 결과가 아닌 잡음
+        handled = true;
+        setError(''); setStatus('연결하는 중…');
+        invokeDuprLink({
+          action: 'link',
+          userToken: msg.userToken,
+          refreshToken: msg.refreshToken,
+          duprId: msg.duprId,
+          duprNumericId: msg.id,
+        }).then(function (res) {
+          var ok = !res.error && res.data && res.data.linked && res.data.duprId;
+          if (ok) { close(); load(); return; }
+          return duprFailure(res).then(function (code) {
+            handled = false; // 재시도 허용
+            setStatus(''); setError(emsg({ message: code }));
+          });
+        });
+      }
+      function close() {
+        window.removeEventListener('message', onMessage);
+        if (d.open) d.close();
+      }
+      window.addEventListener('message', onMessage);
+      d.addEventListener('close', function () { window.removeEventListener('message', onMessage); d.remove(); });
+      d.addEventListener('click', function (ev) { if (ev.target === d) close(); });
+      d.querySelector('[data-x]').addEventListener('click', close);
+      d.showModal();
+    }
+
+    function unlinkDupr(btn) {
+      if (!confirm('DUPR 연동을 해제할까요? 레이팅 표시도 함께 지워집니다.')) return;
+      btn.disabled = true;
+      invokeDuprLink({ action: 'unlink' }).then(function (res) {
+        if (!res.error && res.data && res.data.linked === false) { load(); return; }
+        return duprFailure(res).then(function (code) { alert(emsg({ message: code })); btn.disabled = false; });
+      });
+    }
+
     function wire() {
+      bodyEl.querySelectorAll('[data-more]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var panel = bodyEl.querySelector('[data-more-panel="' + b.dataset.more + '"]');
+          if (!panel) return;
+          panel.hidden = !panel.hidden;
+          b.hidden = !panel.hidden;
+        });
+      });
+
+      bodyEl.querySelectorAll('[data-dupr]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          if (b.dataset.dupr === 'link') openDuprSso(); else unlinkDupr(b);
+        });
+      });
+
       bodyEl.querySelectorAll('[data-link]').forEach(function (b) {
         b.addEventListener('click', function () {
           b.disabled = true;
@@ -258,28 +381,6 @@
         });
       });
 
-      var nf = document.getElementById('me-nick');
-      nf.addEventListener('submit', function (ev) {
-        ev.preventDefault();
-        err(nf, ''); ok(nf, false);
-        var next = nf.nickname.value.trim();
-        if (next === (prof.nickname || '')) { ok(nf, true); return; }
-        busy(nf, true);
-        // 아바타·DUPR 도 같은 호출이 덮는다 — 현재 값을 그대로 돌려보내 보존한다
-        // (연동 계정의 DUPR 은 서버가 보낸 값을 무시하고 웹훅 값을 지킨다).
-        sb.rpc('update_my_profile', {
-          p_nickname: next || null,
-          p_avatar_path: prof.avatar_path || null,
-          p_dupr_rating: prof.dupr_rating == null ? null : Number(prof.dupr_rating),
-          p_self_rating: null,
-          p_club_id: null,
-        }).then(function (r) {
-          busy(nf, false);
-          if (r.error) { err(nf, emsg(r.error)); return; }
-          if (r.data) prof = r.data;
-          ok(nf, true);
-        });
-      });
     }
 
     function changePassword() {
