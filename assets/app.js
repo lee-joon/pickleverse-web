@@ -557,8 +557,11 @@
             : (session ? '<button class="btn" data-report-post>신고</button>' : '');
           // 상단 고정은 운영자 전용·뉴스 전용 — 서버(hub_pin_community_post)가 다시 판정한다.
           if (amAdmin && PV.board === 'news') {
-            html += '<button class="btn" data-pin="' + (data.post.is_pinned ? '0' : '1') + '">' +
-              (data.post.is_pinned ? '고정 해제' : '상단 고정') + '</button>';
+            // 글자는 그대로 두고 켜짐만 색으로 보인다 — 글자가 바뀌면 버튼이 사라진 줄 안다.
+            html += '<button class="btn' + (data.post.is_pinned ? ' on' : '') + '"' +
+              ' aria-pressed="' + (data.post.is_pinned ? 'true' : 'false') + '"' +
+              ' title="' + (data.post.is_pinned ? '목록 맨 위에 고정돼 있습니다. 누르면 해제됩니다.' : '누르면 목록 맨 위에 고정됩니다.') + '"' +
+              ' data-pin="' + (data.post.is_pinned ? '0' : '1') + '">상단 고정</button>';
           }
           acts.innerHTML = html;
         }

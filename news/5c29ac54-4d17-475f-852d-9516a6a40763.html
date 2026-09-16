@@ -134,6 +134,9 @@
   /* 글 작업 버튼(수정·삭제·상단 고정)은 한 span 안에 들어간다 — 그 안에도 같은 간격을 준다.
      안 그러면 바깥 gap 만 적용돼 셋이 딱 붙는다. */
   #pv-postactions { display:inline-flex; align-items:center; gap:var(--s2); flex-wrap:wrap; justify-content:flex-end; }
+  /* 켜고 끄는 버튼은 글자를 바꾸지 않는다 — 켜짐을 색으로 보인다. 글자가 바뀌면 원래 버튼이
+     사라진 것처럼 읽힌다(2026-09-16 "상단 고정이 사라졌다" 보고). */
+  .btn.on { background:var(--accent-soft); border-color:var(--on-accent); color:var(--on-accent); font-weight:700; }
 
   /* ── 댓글 — 글 보기와 같은 밴드 문법(좌우 테두리 없음), 같은 좌측 기준선 ── */
   .cmts { margin-top:var(--s6); border-top:1px solid var(--line); border-bottom:1px solid var(--line); max-width:var(--read); margin-inline:auto; }
@@ -358,8 +361,8 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-16","privacy":"2026-09-14","oauth":["google","kakao","apple"],"post":"5c29ac54-4d17-475f-852d-9516a6a40763","view":false,"page":1,"staticIds":[],"total":0};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=317f2976fa"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=317f2976fa" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=ccfe104f08"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=ccfe104f08" defer></script>
     
   </head>
   <body>
@@ -393,7 +396,7 @@
           <div class="meta" style="margin-top:8px">
             <span>글쓴이 <b>관리자</b></span>
             <span>작성일 <b>2026.09.16 12:32</b></span>
-            <span>조회 <b id="pv-views">0</b></span>
+            <span>조회 <b id="pv-views">1</b></span>
             
           </div>
         </div>
