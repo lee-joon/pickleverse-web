@@ -36,6 +36,8 @@
     get me() { return me; },
     requireMember: function (cb) { requireMember(cb); },
     msg: function (e) { return msg(e); },
+    /** 내 실력대 구간(없으면 null) — 편집기가 체크박스를 드러낼지 판단한다. */
+    skillBand: function () { return mySkillBand(); },
   };
   window.PVApp = App;
 
@@ -82,6 +84,30 @@
 
   /* 436: 운영자 표기는 판이 아니라 작성자로 정해진다. 자유게시판은 운영자라도 익명이라
      서버가 'admin' 을 주지 않는다 — 여기서 판을 다시 따지지 않는다. */
+  /* 실력대 배지 — 서버가 준 코드만 그린다. 없으면 아무것도 그리지 않는다
+     (빈칸을 설명하는 글자를 넣으면 그 빈칸이 정보가 된다). */
+  var SKILL_BANDS = { lt25: '2.5 미만', '25_30': '2.5~3.0', '30_35': '3.0~3.5', gte35: '3.5 이상' };
+  /* 레이팅 → 구간. 서버 hub_community_skill_band 와 같은 경계다.
+     본인 행만 읽는다 — 편집기는 이 함수를 부르기만 하고 사용자 식별자를 쥐지 않는다. */
+  function bandOf(raw) {
+    var n = typeof raw === 'string' ? Number(raw) : raw;
+    if (typeof n !== 'number' || !isFinite(n)) return null;
+    if (n < 2.5) return 'lt25';
+    if (n < 3.0) return '25_30';
+    if (n < 3.5) return '30_35';
+    return 'gte35';
+  }
+  function mySkillBand() {
+    if (!session) return Promise.resolve(null);
+    return sb.from('user_profiles').select('dupr_rating').eq('user_id', session.user.id).maybeSingle()
+      .then(function (r) { return r && r.data ? bandOf(r.data.dupr_rating) : null; })
+      .catch(function () { return null; });
+  }
+  function skillBadge(p) {
+    var label = p && SKILL_BANDS[p.skill_band];
+    return label ? '<span class="band">DUPR ' + esc(label) + '</span>' : '';
+  }
+
   function authorLabel(c) {
     if (c.author_kind === 'withdrawn' || c.author_seq == null) return { label: '탈퇴한 회원', cls: 'gone' };
     if (c.author_kind === 'admin') return { label: '관리자', cls: 'op' };
@@ -393,7 +419,7 @@
             '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
               '<td class="tit"><a href="' + esc(viewUrl + '?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
-              '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + '</td><td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
+              '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + skillBadge(p) + '</td><td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
               '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
             '</tr>'));
         });
@@ -473,7 +499,7 @@
     var who = p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0);
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
-        '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b></span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
+        '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b>' + skillBadge(p) + '</span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
         '<span>조회 <b id="pv-views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</b></span>' +
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +

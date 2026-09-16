@@ -40,6 +40,24 @@
   }
   function uuid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(16) + Math.random().toString(16).slice(2)); }
 
+  /* ── 실력대 표시 (마이그 437) ────────────────────────────────────────────
+     붙을 배지가 있을 때만 드러낸다 — 켜도 아무 일이 없는 체크박스를 보여 주면
+     "왜 안 붙지" 만 남는다. 구간 경계는 서버 hub_community_skill_band 와 같다. */
+  var bandBox = $('#ed-band'), bandRow = $('#ed-band-row');
+  var BAND_LABELS = { lt25: '2.5 미만', '25_30': '2.5~3.0', '30_35': '3.0~3.5', gte35: '3.5 이상' };
+  function revealSkillBand() {
+    // 수정 모드는 작성 시점 값이라 여기서 바꾸지 않는다(끄고 켜기는 글 화면에서).
+    // 프로필 조회는 app.js 가 맡는다 — 편집기는 사용자 식별자를 어떤 형태로도 쥐지 않는다
+    // (업로드 경로·페이로드에 id 가 새지 않게 하는 익명성 가드, communityAnonymity.test).
+    if (!bandRow || editId || !App.skillBand) return;
+    App.skillBand().then(function (band) {
+      if (!band || !BAND_LABELS[band]) return;
+      var label = $('#ed-band-label');
+      if (label) label.textContent = '(' + BAND_LABELS[band] + ')';
+      bandRow.hidden = false;
+    }).catch(function () {});
+  }
+
   /* ── 로그인 게이트: 페이지 자체가 문지기다 ─────────────────────────────── */
   var gate = $('#ed-gate'), form = $('#ed-form');
   function applyGate() {
@@ -47,6 +65,7 @@
       App.checkProfile().then(function (ok) {
         if (!ok) { App.openProfile(applyGate); return; }
         gate.hidden = true; form.hidden = false;
+        revealSkillBand();
         if (editId) loadForEdit(); else offerRestore();
       });
     } else {
@@ -550,6 +569,7 @@
           : App.sb.rpc('hub_create_community_post', {
               p_board_kind: PV.board, p_title: title, p_body: plain, p_image_paths: paths, p_link_url: link,
               p_body_rich: hasFormat ? doc : null,
+              p_show_skill_band: !!(bandBox && bandBox.checked),
             });
         call.then(function (r) {
           if (r.error) throw r.error;

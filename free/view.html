@@ -227,6 +227,10 @@
   .pv-del.lnk { color:var(--danger); margin-left:var(--s2); font-size:11px; }
   .cmts .when .pv-del { text-decoration:none; }
   table.list tr.fresh td { background:var(--accent-soft); }
+  /* 실력대 배지 — 이름표 옆의 작은 칩. 눈에 띄되 작성자 표기를 가리지 않는다. */
+  .band { display:inline-block; margin-left:6px; padding:0 5px; font-size:11px; line-height:17px;
+          color:var(--sub); border:1px solid var(--line); border-radius:3px; white-space:nowrap; vertical-align:1px; }
+  table.list .band { font-size:10px; line-height:15px; }
   .mine { display:inline-block; margin-left:6px; padding:0 6px; font-size:11px; font-weight:700; line-height:18px; color:var(--brand); border:1px solid var(--brand); border-radius:3px; vertical-align:1px; }
   .cmts .who .mine { margin-left:4px; }
   #pv-article:empty { min-height:120px; }
@@ -348,6 +352,10 @@
   .ned-pub .toggle input:checked + span { background:var(--brand); }
   .ned-pub .toggle input:checked + span::after { transform:translateX(18px); }
   /* 임시저장 복원 바 */
+  .ned-band { display:flex; gap:var(--s2); align-items:flex-start; padding:var(--s3) var(--s4);
+              border-bottom:1px solid var(--line-soft); font-size:13px; color:var(--ink); cursor:pointer; }
+  .ned-band input { margin-top:3px; }
+  .ned-band small { display:block; color:var(--sub); font-size:11px; line-height:1.55; margin-top:2px; }
   .ned-restore { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 auto; max-width:880px; padding:10px 20px; background:var(--accent-soft); color:var(--on-accent); font-size:13px; }
   .ned-restore .lnk { color:inherit; font-weight:700; margin-left:10px; }
   @media (max-width:640px) {
@@ -404,10 +412,10 @@
   }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-16","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":true,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":true,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=a4909c9926"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=a4909c9926" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=018ea5b59e"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=018ea5b59e" defer></script>
     
   </head>
   <body>
