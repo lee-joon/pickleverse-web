@@ -122,13 +122,13 @@
     if (file.size > MAX_ORIGINAL) { status(file.name + ': 20MB 이하 사진만 올릴 수 있습니다.', true); return Promise.resolve(); }
     if (!/^image\//.test(file.type)) { status(file.name + ': 이미지 파일이 아닙니다.', true); return Promise.resolve(); }
     status('사진 처리 중…');
-    return downsize(file).then(function (blob) {
+    return downsize(file).then(function (out) {
       var path = 'posts/' + draftId + '/' + uuid() + '.jpg';
       status('업로드 중…');
-      return App.sb.storage.from(Rich.BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: false }).then(function (r) {
+      return App.sb.storage.from(Rich.BUCKET).upload(path, out.blob, { contentType: 'image/jpeg', upsert: false }).then(function (r) {
         if (r.error) throw r.error;
         uploaded.push(path);
-        insertFigure(path);
+        insertFigure(path, out.w, out.h);
         status('');
         markDirty();
       });
@@ -150,7 +150,9 @@
         var ctx = c.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cw, ch); // PNG 투명 → 흰 배경
         ctx.drawImage(img, 0, 0, cw, ch);
-        c.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error('Encode failed')); }, 'image/jpeg', JPEG_Q);
+        // 재인코딩 결과의 실제 픽셀 크기를 같이 넘긴다 — 본문 모델의 w/h 가 되어
+        // 읽는 쪽이 이미지를 받기 전에 자리를 잡는다(글 튐 방지).
+        c.toBlob(function (blob) { blob ? resolve({ blob: blob, w: cw, h: ch }) : reject(new Error('Encode failed')); }, 'image/jpeg', JPEG_Q);
       };
       img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('이 사진 형식은 브라우저가 열지 못합니다. JPG·PNG·WebP 로 올려 주세요.')); };
       img.src = url;
@@ -167,12 +169,14 @@
       '<span class="sep"></span>' +
       '<button type="button" data-img="remove">삭제</button>' +
     '</div>';
-  function figureHtml(path, size, align) {
-    return '<figure class="rimg ed-img s-' + (size || 'md') + ' a-' + (align || 'center') + '" contenteditable="false" data-path="' + esc(path) + '">' +
-      '<img src="' + esc(Rich.imageUrl(PV.url, path)) + '" alt="" />' + IMG_TOOLS + '</figure>';
+  function figureHtml(path, size, align, w, h) {
+    var dim = w && h ? ' width="' + w + '" height="' + h + '"' : '';
+    var data = w && h ? ' data-w="' + w + '" data-h="' + h + '"' : '';
+    return '<figure class="rimg ed-img s-' + (size || 'md') + ' a-' + (align || 'center') + '" contenteditable="false" data-path="' + esc(path) + '"' + data + '>' +
+      '<img src="' + esc(Rich.imageUrl(PV.url, path)) + '"' + dim + ' alt="" />' + IMG_TOOLS + '</figure>';
   }
-  function insertFigure(path) {
-    var fig = document.createElement('template'); fig.innerHTML = figureHtml(path);
+  function insertFigure(path, w, h) {
+    var fig = document.createElement('template'); fig.innerHTML = figureHtml(path, null, null, w, h);
     var node = fig.content.firstElementChild;
     var sel = window.getSelection();
     var block = null;
@@ -264,6 +268,8 @@
         var img = { t: 'img', path: node.dataset.path };
         img.size = node.classList.contains('s-sm') ? 'sm' : node.classList.contains('s-full') ? 'full' : 'md';
         img.align = node.classList.contains('a-left') ? 'left' : node.classList.contains('a-right') ? 'right' : 'center';
+        var dw = parseInt(node.dataset.w, 10), dh = parseInt(node.dataset.h, 10);
+        if (dw > 0 && dh > 0) { img.w = dw; img.h = dh; }
         blocks.push(img); return;
       }
       if (tag === 'BR') { if (cur) pushText('\n', st); return; }
@@ -299,6 +305,32 @@
     return { v: 1, blocks: out };
   }
 
+  /* ── 올렸다가 안 쓴 사진 정리 ────────────────────────────────────────────
+     사진을 도구로 지우면 그 자리에서 파일까지 지운다(imgAction remove). 하지만
+     전체 선택 후 삭제처럼 다른 경로로 사라지면 파일만 남는다. 그래서 (1) 발행 직전,
+     (2) 초안을 버릴 때, (3) 오래된 초안을 자동으로 버릴 때 본문에 없는 업로드를 지운다.
+     편집 중에는 하지 않는다 — 실행 취소로 되살아난 사진의 파일이 이미 없으면 더 나쁘다.
+     삭제 권한은 432 의 "hub community owner delete" 정책(본인 업로드 한정)이다. */
+  function removeFiles(paths) {
+    if (!paths || !paths.length) return Promise.resolve();
+    return App.sb.storage.from(Rich.BUCKET).remove(paths).catch(function () {});
+  }
+  function inDocument() {
+    return Array.prototype.map.call(root.querySelectorAll('figure.ed-img'), function (f) { return f.dataset.path; });
+  }
+  function cleanupUnused() {
+    var keep = inDocument();
+    var drop = uploaded.filter(function (p) { return keep.indexOf(p) < 0; });
+    uploaded = uploaded.filter(function (p) { return keep.indexOf(p) >= 0; });
+    return removeFiles(drop);
+  }
+  /** 이 브라우저에 남은 초안을 버린다 — 그 초안이 올린 사진까지 같이. */
+  function discardDraft(saved) {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    return removeFiles((saved && Array.isArray(saved.uploaded)) ? saved.uploaded : []);
+  }
+  var DRAFT_TTL = 14 * 24 * 60 * 60 * 1000; // 2주 지난 초안은 되살릴 만한 글이 아니다
+
   /* ── 임시저장(이 브라우저) — 네이버의 임시저장처럼, 떠났다 돌아와도 이어 쓴다 ── */
   var dirty = false, saveTimer = null;
   function markDirty() { dirty = true; updatePlaceholder(); if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 1500); }
@@ -314,6 +346,8 @@
     var bar = $('#ed-restore'); if (!bar) return;
     var saved = null; try { saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) {}
     if (!saved || !(saved.title || saved.html) || $('#ed-title').value || root.textContent.trim()) return;
+    // 2주 넘은 초안은 묻지 않고 버린다 — 안 그러면 그 초안이 올린 사진이 영영 남는다.
+    if (saved.at && Date.now() - saved.at > DRAFT_TTL) { discardDraft(saved); return; }
     bar.hidden = false;
     $('#ed-restore-yes').onclick = function () {
       $('#ed-title').value = saved.title || '';
@@ -327,7 +361,7 @@
       if (Array.isArray(saved.uploaded)) uploaded = saved.uploaded.slice();
       bar.hidden = true; updatePlaceholder(); markDirty();
     };
-    $('#ed-restore-no').onclick = function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} bar.hidden = true; };
+    $('#ed-restore-no').onclick = function () { discardDraft(saved); bar.hidden = true; };
   }
   function updatePlaceholder() { root.classList.toggle('blank', !root.textContent.trim() && !root.querySelector('figure')); }
   root.addEventListener('input', markDirty);
@@ -388,6 +422,7 @@
       }
       var hasFormat = doc.blocks.some(function (b) { return b.t === 'img' || b.align || b.runs.some(function (r) { return r.b || r.i || r.u || r.color || r.size; }); });
       submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status('발행 중…');
+      cleanupUnused(); // 본문에서 빠진 사진은 글과 함께 남기지 않는다
       App.requireMember(function () {
         App.sb.rpc('hub_create_community_post', {
           p_board_kind: PV.board, p_title: title, p_body: plain, p_image_paths: paths, p_link_url: link,

@@ -2,7 +2,7 @@
  * 커뮤니티 서식 본문 — 웹 공용 모듈 (생성기(Node)·app.js·편집기(브라우저) 공용).
  * 규칙은 src/apps/hub/services/communityRich.ts 와 동일하다(계약 테스트가 상수를 대조).
  *
- * 모델: { v:1, blocks:[ {t:'p', align?, runs:[{text,b?,i?,u?,color?,size?}]}, {t:'img', path, size?, align?} ] }
+ * 모델: { v:1, blocks:[ {t:'p', align?, runs:[{text,b?,i?,u?,color?,size?}]}, {t:'img', path, size?, align?, w?, h?} ] }
  * 렌더는 모델에서 요소를 만들지 HTML 을 파싱하지 않는다 — 텍스트는 전부 이스케이프, 속성은 집합에서만.
  */
 
@@ -11,7 +11,7 @@ const COLOR_RE = /^#[0-9a-f]{6}$/;
 const SIZES = ['sm', 'md', 'lg', 'xl'];
 const IMG_SIZES = ['sm', 'md', 'full'];
 const ALIGNS = ['left', 'center', 'right'];
-export const LIMITS = { blocks: 300, runs: 200, runText: 4000, images: 10 };
+export const LIMITS = { blocks: 300, runs: 200, runText: 4000, images: 10, imageEdge: 20000 };
 export const BUCKET = 'hub-community';
 
 export function imageUrl(supabaseUrl, path) {
@@ -51,10 +51,18 @@ export function sanitizeRich(raw, allowedPaths) {
       const img = { t: 'img', path: b.path };
       if (IMG_SIZES.includes(b.size)) img.size = b.size;
       if (align) img.align = align;
+      // 업로드 시점 픽셀 크기 — 비율을 미리 알려 이미지가 오기 전에 자리를 잡게 한다.
+      // 둘 다 있을 때만 쓴다(하나만으론 비율을 못 구한다).
+      const dw = dimension(b.w), dh = dimension(b.h);
+      if (dw && dh) { img.w = dw; img.h = dh; }
       blocks.push(img);
     }
   }
   return { v: 1, blocks };
+}
+
+function dimension(v) {
+  return Number.isInteger(v) && v >= 1 && v <= LIMITS.imageEdge ? v : null;
 }
 
 export function richToPlainText(doc) {
@@ -85,7 +93,10 @@ export function renderRichHtml(doc, supabaseUrl) {
   for (const b of doc.blocks) {
     if (b.t === 'img') {
       const cls = `rimg s-${b.size ?? 'md'} a-${b.align ?? 'center'}`;
-      out.push(`<figure class="${cls}"><img src="${esc(imageUrl(supabaseUrl, b.path))}" alt="" loading="lazy" /></figure>`);
+      // width/height 를 실으면 브라우저가 이미지가 오기 전에 비율만큼 자리를 비워 둔다
+      // (CSS 의 height:auto 와 짝) — 글이 아래로 튀지 않는다.
+      const dim = b.w && b.h ? ` width="${b.w}" height="${b.h}"` : '';
+      out.push(`<figure class="${cls}"><img src="${esc(imageUrl(supabaseUrl, b.path))}"${dim} alt="" loading="lazy" /></figure>`);
       continue;
     }
     const runs = b.runs
