@@ -31,6 +31,9 @@
     openAuth: function (m) { openAuth(m); },
     openProfile: function (cb) { openProfile(cb); },
     checkProfile: function () { return checkProfile(); },
+    /* 저장 뒤 캐시를 버리고 다시 읽는다 — 머리글의 이름이 옛 값으로 남지 않게. */
+    refreshProfile: function () { profileOk = null; return checkProfile(); },
+    get me() { return me; },
     requireMember: function (cb) { requireMember(cb); },
     msg: function (e) { return msg(e); },
   };
@@ -111,6 +114,10 @@
     ['Comment not found', '댓글을 찾을 수 없습니다.'],
     ['Invalid real_name length', '이름은 2~40자여야 합니다.'],
     ['Domestic users must use Korean name', '내국인은 한글 이름만 입력할 수 있습니다.'],
+    ['Domestic name must be Korean or Latin letters', '이름은 한글만 또는 영문만으로 입력해 주세요(섞어 쓸 수 없습니다).'],
+    ['Invalid phone format', '연락처는 숫자만 9~15자리로 입력해 주세요.'],
+    ['Invalid birth year', '출생연도를 다시 확인해 주세요. 만 14세 이상만 가입할 수 있습니다.'],
+    ['Invalid gender', '성별 값이 올바르지 않습니다.'],
     ['Foreign users must use Latin name', '외국인은 영문 이름만 입력할 수 있습니다.'],
     ['Platform terms must be accepted', '이용약관에 동의해 주세요.'],
     ['Privacy policy must be accepted', '개인정보 처리방침에 동의해 주세요.'],
@@ -147,23 +154,12 @@
   /* ── 세션 / 계정 슬롯 ──────────────────────────────────────────────────── */
   var session = null;
   var me = null; // 본인 행(users) — 본인 화면에만 쓴다. 다른 사람의 행을 읽는 경로는 없다.
-  /* 이 계정에 아직 안 붙은 로그인 수단 — 같은 사람이 수단만 바꿔 들어와도 다른 계정이 되는 걸 막는다.
-     서버는 로그인한 본인 계정에만 붙인다(Supabase manual linking). */
-  function missingProviders() {
-    if (!session || !session.user) return [];
-    var have = {};
-    (session.user.identities || []).forEach(function (i) { have[i.provider] = true; });
-    ((session.user.app_metadata || {}).providers || []).forEach(function (p) { have[p] = true; });
-    return (PV.oauth || []).filter(function (k) { return !have[k]; });
-  }
-
   function renderAccount() {
     var slot = $('#pv-account'); if (!slot) return;
     if (session) {
       var name = (me && me.real_name) || (session.user && session.user.email) || '회원';
-      // 안 붙은 수단이 여럿일 수 있다 — 머리글은 좁으니 링크 하나로 묶고 목록은 다이얼로그에서 고른다.
       slot.innerHTML = '<span class="me" title="다른 이용자에게는 익명으로 보입니다">' + esc(name) + '</span>' +
-        (missingProviders().length ? '<button class="lnk" data-pv="link">로그인 수단 추가</button>' : '') +
+        '<a class="lnk" href="' + esc(PV.site + '/me.html') + '">내 정보</a>' +
         '<button class="lnk" data-pv="logout">로그아웃</button>';
     } else {
       slot.innerHTML = '<button class="lnk" data-pv="login">로그인</button><button class="lnk" data-pv="signup">회원가입</button>';
@@ -195,28 +191,6 @@
     return list.map(function (k) {
       return '<button type="button" data-oauth="' + k + '">' + (OAUTH_ICONS[k] || '') + OAUTH_LABELS[k] + '</button>';
     }).join('');
-  }
-
-  /* 같은 사람이 수단만 바꿔 들어와도 다른 계정이 된다 — 이미 로그인한 계정에 수단을 붙여 그걸 막는다. */
-  function openLinkDialog() {
-    var missing = missingProviders();
-    if (!missing.length) return;
-    var d = dialog(
-      '<button class="x" data-x aria-label="닫기">×</button><h3>로그인 수단 추가</h3>' +
-      '<p class="pv-note">지금 로그인한 계정에 붙입니다. 다음부터는 어느 수단으로 들어와도 같은 계정이고, ' +
-      '내가 쓴 글도 그대로 내 글로 보입니다.</p>' +
-      '<div class="pv-social">' + missing.map(function (k) {
-        return '<button type="button" data-link="' + k + '">' + (OAUTH_ICONS[k] || '') +
-          (OAUTH_LABELS[k] || k).replace('로 계속하기', '') + ' 연결</button>';
-      }).join('') + '</div>' +
-      '<p class="pv-err" hidden></p>'
-    );
-    d.querySelectorAll('[data-link]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        sb.auth.linkIdentity({ provider: b.dataset.link, options: { redirectTo: location.href.split('#')[0] } })
-          .then(function (r) { if (r.error) setErr(d, msg(r.error)); });
-      });
-    });
   }
 
   function openAuth(mode) {
@@ -579,7 +553,6 @@
       sb.rpc('hub_pin_community_post', { p_post_id: postId, p_pinned: t.dataset.pin === '1' })
         .then(function (r) { if (r.error) { alert(msg(r.error)); t.disabled = false; } else loadPost(); });
     }
-    else if (t.dataset.pv === 'link') openLinkDialog();
     else if (t.dataset.pv === 'login') openAuth('login');
     else if (t.dataset.pv === 'signup') openAuth('signup');
     else if (t.dataset.pv === 'logout') sb.auth.signOut({ scope: 'local' });

@@ -230,6 +230,33 @@
   .mine { display:inline-block; margin-left:6px; padding:0 6px; font-size:11px; font-weight:700; line-height:18px; color:var(--brand); border:1px solid var(--brand); border-radius:3px; vertical-align:1px; }
   .cmts .who .mine { margin-left:4px; }
   #pv-article:empty { min-height:120px; }
+
+  /* ── 내 정보(me.html) — 읽기 열 안의 카드 목록. 앱 설정 화면의 그룹 리스트와 같은 구성 ── */
+  .me { max-width:var(--read); margin:0 auto; }
+  .me-gate { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:var(--s8) var(--s4);
+             text-align:center; color:var(--sub); font-size:13px; line-height:1.9; }
+  .me-gate .btn { margin-top:var(--s3); }
+  .me-loading { color:var(--sub); font-size:13px; padding:var(--s6) 0; }
+  .me-card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:var(--s4); margin-bottom:var(--s4); }
+  .me-card h2 { margin:0 0 var(--s3); font-size:15px; font-weight:700; letter-spacing:-0.2px; }
+  .me-card .pv-note { margin-bottom:var(--s3); }
+  .me-facts { margin:0; display:grid; gap:var(--s2); }
+  .me-facts > div { display:flex; gap:var(--s3); align-items:baseline; border-top:1px solid var(--line-soft); padding-top:var(--s2); }
+  .me-facts > div:first-child { border-top:none; padding-top:0; }
+  .me-facts dt { flex:0 0 96px; font-size:12px; font-weight:700; color:var(--sub); }
+  .me-facts dd { margin:0; flex:1 1 auto; min-width:0; font-size:13px; word-break:break-all; }
+  .me-facts dd small { display:block; color:var(--sub); font-size:11px; word-break:keep-all; }
+  .me-facts a { color:var(--brand); text-decoration:underline; }
+  .me-card .btn { margin-top:var(--s3); }
+  .me-card form.pv-form .btn { margin-top:0; }
+  .me-form-sep { margin-top:var(--s4); }
+  .pv-form select { font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong);
+                    border-radius:6px; background:var(--bg); color:var(--ink); }
+  .pv-form input[type=tel] { font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong);
+                             border-radius:6px; background:var(--bg); color:var(--ink); }
+  .me-actions { display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap; }
+  .me-actions .btn { flex:0 0 auto; min-width:104px; }
+  .me-ok { font-size:12px; color:var(--brand); font-weight:700; }
   
   .rich .b { font-weight:700; } .rich .i { font-style:italic; } .rich .u { text-decoration:underline; }
   .rich .c { color:var(--c); }
@@ -359,10 +386,10 @@
   }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-16","privacy":"2026-09-14","oauth":["google","kakao","apple"],"post":null,"view":false,"page":1,"staticIds":[],"total":0};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-16","privacy":"2026-09-14","oauth":["google","kakao","apple"],"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=192f6834db"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=192f6834db" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=e29ac54545"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=e29ac54545" defer></script>
     
   </head>
   <body>
