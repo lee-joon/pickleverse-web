@@ -436,13 +436,16 @@
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';
   }
-  // 읽기 응답과 증가 응답이 경쟁한다 — 늦게 온 낮은 값이 화면을 되돌리지 않게 단조 증가로만 쓴다.
+  /* 조회수는 DOM 이 아니라 여기에 들고 최대값만 남긴다.
+     이유 둘: (1) 읽기 응답과 증가 응답이 경쟁해서 늦게 온 낮은 값이 화면을 되돌릴 수 있다.
+     (2) view.html 은 renderArticle() 이 메타 줄을 통째로 다시 그려 노드를 갈아끼우므로,
+     DOM 에만 써두면 증가분이 읽기 값으로 덮인다 — 실제로 서버는 1인데 화면은 0 이었다
+     (2026-09-16 실측). 그래서 재렌더 뒤 setViews() 가 다시 불리면 최대값이 복원된다. */
+  var viewsSeen = null;
   function setViews(n) {
-    if (typeof n !== 'number') return;
-    var v = $('#pv-views'); if (!v) return;
-    var cur = parseInt(v.textContent, 10);
-    if (!isNaN(cur) && n < cur) return;
-    v.textContent = n;
+    if (typeof n === 'number' && (viewsSeen === null || n > viewsSeen)) viewsSeen = n;
+    if (viewsSeen === null) return;
+    var v = $('#pv-views'); if (v) v.textContent = viewsSeen;
   }
   /* 조회수 +1 — 탭 세션당 글 하나에 한 번. loadPost() 는 로그인 이벤트와 댓글 작성
      뒤에도 다시 도는데 거기 붙이면 한 사람이 여러 번 세진다. 실패는 조용히 넘긴다. */
