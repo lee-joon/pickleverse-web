@@ -131,6 +131,9 @@
   .view .link a { color:var(--brand); font-weight:700; }
   .view .foot { display:flex; justify-content:space-between; align-items:center; gap:var(--s3); padding:var(--s3) var(--s4); border-top:1px solid var(--line-soft); }
   .view .foot:empty { display:none; }
+  /* 글 작업 버튼(수정·삭제·상단 고정)은 한 span 안에 들어간다 — 그 안에도 같은 간격을 준다.
+     안 그러면 바깥 gap 만 적용돼 셋이 딱 붙는다. */
+  #pv-postactions { display:inline-flex; align-items:center; gap:var(--s2); flex-wrap:wrap; justify-content:flex-end; }
 
   /* ── 댓글 — 글 보기와 같은 밴드 문법(좌우 테두리 없음), 같은 좌측 기준선 ── */
   .cmts { margin-top:var(--s6); border-top:1px solid var(--line); border-bottom:1px solid var(--line); max-width:var(--read); margin-inline:auto; }
@@ -355,8 +358,8 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-16","privacy":"2026-09-14","oauth":["google","kakao","apple"],"post":null,"view":true,"page":1,"staticIds":[],"total":0};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=bf0f7f2b98"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=bf0f7f2b98" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=317f2976fa"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=317f2976fa" defer></script>
     
   </head>
   <body>

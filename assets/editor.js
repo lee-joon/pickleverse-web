@@ -255,6 +255,18 @@
     selectFigure(fig && root.contains(fig) ? fig : null);
   });
   root.addEventListener('mousedown', function (ev) { if (ev.target.closest('[data-img]')) ev.preventDefault(); });
+  /* 사진 밖을 누르면 도구 막대가 바로 사라진다 — 본문뿐 아니라 제목·도구·머리글·페이지 아무 데나.
+     pointerdown(캡처)이라 포커스가 옮겨가기 전에 반응해서 즉시 사라진 것처럼 보인다.
+     누른 곳이 지금 선택된 사진 안(도구 버튼 포함)이면 그대로 둔다. */
+  document.addEventListener('pointerdown', function (ev) {
+    if (!selected) return;
+    var t = ev.target;
+    if (t && t.closest && t.closest('figure.ed-img') === selected) return;
+    selectFigure(null);
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && selected) selectFigure(null);
+  });
   function imgAction(k, v, fig) {
     if (!fig) return;
     if (k === 'size') { fig.classList.remove('s-sm', 's-md', 's-full'); fig.classList.add('s-' + v); }
