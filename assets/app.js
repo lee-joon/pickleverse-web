@@ -418,7 +418,7 @@
           frag.appendChild(el(
             '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
-              '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
+              '<td class="tit"><a href="' + esc(viewUrl + '?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
               '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + '</td><td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
               '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
             '</tr>'));
@@ -495,7 +495,7 @@
   }
   function renderArticle(p) {
     var art = $('#pv-article'); if (!art) return;
-    document.title = p.title + ' — ' + (PV.board === 'news' ? '뉴스 게시판' : '자유게시판') + ' — 피클허브 커뮤니티';
+    document.title = p.title + ' — ' + (p.board_kind === 'news' ? '뉴스 게시판' : '자유게시판') + ' — 피클허브 커뮤니티';
     var who = p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0);
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
@@ -552,11 +552,12 @@
         var acts = $('#pv-postactions');
         if (acts) {
           var html = data.post.is_mine
-            ? '<a class="btn" href="' + esc(PV.site + '/' + (PV.board === 'news' ? 'news' : 'free') + '/write.html?edit=' + data.post.id) + '">수정</a>' +
+            ? '<a class="btn" href="' + esc(PV.site + '/' + (data.post.board_kind === 'news' ? 'news' : 'free') + '/write.html?edit=' + data.post.id) + '">수정</a>' +
               '<button class="btn danger pv-del" data-del-post>삭제</button>'
             : (session ? '<button class="btn" data-report-post>신고</button>' : '');
           // 상단 고정은 운영자 전용·뉴스 전용 — 서버(hub_pin_community_post)가 다시 판정한다.
-          if (amAdmin && PV.board === 'news') {
+          // 판정은 페이지(PV.board)가 아니라 그 글(board_kind)로 한다 — view.html 은 어느 판 글이든 연다.
+          if (amAdmin && data.post.board_kind === 'news') {
             // 글자는 그대로 두고 켜짐만 색으로 보인다 — 글자가 바뀌면 버튼이 사라진 줄 안다.
             html += '<button class="btn' + (data.post.is_pinned ? ' on' : '') + '"' +
               ' aria-pressed="' + (data.post.is_pinned ? 'true' : 'false') + '"' +
