@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#00361A" />
     <title>글쓰기 — 뉴스 게시판 — 피클허브 커뮤니티</title>
-    <meta name="description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트를 운영자가 올립니다." />
+    <meta name="description" content="전국 피클볼 오픈코트 소식을 나눕니다. 운영자 공지와 회원 소식이 함께 올라옵니다." />
     <link rel="canonical" href="https://picklehubkorea.com/" />
     <link rel="icon" href="https://picklehubkorea.com/assets/logo-128.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="피클허브 커뮤니티" />
     <meta property="og:title" content="글쓰기 — 뉴스 게시판 — 피클허브 커뮤니티" />
-    <meta property="og:description" content="전국 피클볼 오픈코트 소식과 피클허브 업데이트를 운영자가 올립니다." />
+    <meta property="og:description" content="전국 피클볼 오픈코트 소식을 나눕니다. 운영자 공지와 회원 소식이 함께 올라옵니다." />
     <meta property="og:url" content="https://picklehubkorea.com/" />
     <meta property="og:image" content="https://picklehubkorea.com/assets/logo-256.png" />
     <meta name="robots" content="noindex" />
@@ -183,8 +183,15 @@
   .pv-tabs { display:flex; gap:2px; margin-bottom:12px; border-bottom:1px solid var(--line); }
   .pv-tabs button { flex:1; background:none; border:none; border-bottom:2px solid transparent; padding:8px; font:inherit; font-weight:700; color:var(--sub); cursor:pointer; }
   .pv-tabs button.on { color:var(--brand); border-bottom-color:var(--brand); }
-  .pv-social { display:grid; gap:6px; }
-  .pv-social button { padding:9px; }
+  .pv-social { display:grid; gap:8px; }
+  /* 소셜 버튼은 각 제공자의 브랜드 색을 쓴다 — 이용자가 색만 보고 고르는 버튼이라
+     테마에 따라 뒤집지 않는다(다크에서도 카카오는 노랑, 애플은 검정). */
+  .pv-social button { position:relative; padding:11px 14px 11px 44px; justify-content:center; border-radius:8px; font-size:14px; }
+  .pv-social button svg { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:18px; height:18px; }
+  .pv-social button[data-oauth="google"] { background:#FFFFFF; color:#1F1F1F; border:1px solid #DADCE0; }
+  .pv-social button[data-oauth="kakao"]  { background:#FEE500; color:#191600; border:1px solid #FEE500; }
+  .pv-social button[data-oauth="apple"]  { background:#000000; color:#FFFFFF; border:1px solid #000000; }
+  .pv-social button:hover { filter:brightness(.96); }
   .pv-or { text-align:center; color:var(--sub); font-size:11px; margin:10px 0 6px; }
   .pv-form { display:grid; gap:10px; }
   .pv-form label { display:grid; gap:4px; font-size:12px; color:var(--sub); font-weight:700; }
@@ -340,11 +347,11 @@
   }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-15","privacy":"2026-09-14","oauth":["google","kakao","apple"],"post":null,"view":false,"page":1,"staticIds":[],"total":0,"write":true};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-16","privacy":"2026-09-14","oauth":["google","kakao","apple"],"post":null,"view":false,"page":1,"staticIds":[],"total":0,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=6ca4a3933f"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=6ca4a3933f" defer></script>
-    <script src="https://picklehubkorea.com/assets/editor.js?v=6ca4a3933f" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=9c4adc94b2"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=9c4adc94b2" defer></script>
+    <script src="https://picklehubkorea.com/assets/editor.js?v=9c4adc94b2" defer></script>
   </head>
   <body>
     <div class="top">

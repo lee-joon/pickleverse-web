@@ -43,11 +43,24 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function fmtFull(iso) { return String(iso || '').slice(0, 16).replace('T', ' ').replace(/-/g, '.'); }
+  /* 오늘 글이면 HH:MM, 어제까지면 MM.DD, 지난 해면 YYYY.MM.DD — 게시판 통상 규칙.
+     정적 페이지는 최대 2시간 묵어서 빌드 시점의 "오늘"이 어긋날 수 있다. 그래서
+     읽는 시점의 로컬 시각으로 다시 계산한다(셀의 data-at 이 원본 시각). */
   function fmtList(iso) {
-    var d = String(iso || '').slice(0, 10);
-    if (d.length !== 10) return '';
-    var y = new Date().getUTCFullYear();
-    return Number(d.slice(0, 4)) === y ? d.slice(5).replace('-', '.') : d.replace(/-/g, '.');
+    var t = Date.parse(String(iso || ''));
+    if (isNaN(t)) return '';
+    var d = new Date(t), now = new Date();
+    var p2 = function (n) { return ('0' + n).slice(-2); };
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+      return p2(d.getHours()) + ':' + p2(d.getMinutes());
+    }
+    var md = p2(d.getMonth() + 1) + '.' + p2(d.getDate());
+    return d.getFullYear() === now.getFullYear() ? md : d.getFullYear() + '.' + md;
+  }
+  function retimeDates(root) {
+    (root || document).querySelectorAll('td.date[data-at]').forEach(function (td) {
+      var v = fmtList(td.dataset.at); if (v) td.textContent = v;
+    });
   }
   function $(sel, root) { return (root || document).querySelector(sel); }
   function el(html) { var t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
@@ -62,13 +75,14 @@
   }
   var base = PV.board === 'news' ? PV.site : PV.site + '/free';
   var viewUrl = PV.site + (PV.board === 'news' ? '/news' : '/free') + '/view.html';
-  var opLabel = PV.board === 'news' ? '운영자' : '글쓴이';
+  var opLabel = '글쓴이';
 
+  /* 436: 운영자 표기는 판이 아니라 작성자로 정해진다. 자유게시판은 운영자라도 익명이라
+     서버가 'admin' 을 주지 않는다 — 여기서 판을 다시 따지지 않는다. */
   function authorLabel(c) {
     if (c.author_kind === 'withdrawn' || c.author_seq == null) return { label: '탈퇴한 회원', cls: 'gone' };
-    if (c.author_seq === 0) {
-      return PV.board === 'news' ? { label: opLabel, cls: 'op' } : { label: '익명 ' + communityAlias(postId, 0), badge: opLabel, cls: 'op' };
-    }
+    if (c.author_kind === 'admin') return { label: '관리자', cls: 'op' };
+    if (c.author_seq === 0) return { label: '익명 ' + communityAlias(postId, 0), badge: opLabel, cls: 'op' };
     return { label: '익명 ' + communityAlias(postId, c.author_seq), cls: '' };
   }
 
@@ -147,11 +161,27 @@
   /* 소셜 로그인 버튼 — 어떤 제공자를 켤지는 생성기(PV.oauth)가 정한다.
      애플은 Supabase 에 OAuth 비밀키가 들어가야 동작해서 준비되기 전에는 빠진다. */
   var OAUTH_LABELS = { google: '구글로 계속하기', kakao: '카카오로 계속하기', apple: 'Apple로 계속하기' };
+  /* 각 제공자의 브랜드 마크 — 로그인 버튼에 쓰라고 배포되는 표식이다. 색·비율은 건드리지 않는다.
+     인라인 SVG 로 둔다(외부 요청 0, CSP 무관, 다크/라이트 무관). */
+  var OAUTH_ICONS = {
+    google: '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">' +
+      '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
+      '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
+      '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
+      '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
+      '</svg>',
+    kakao: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      '<path fill="#191600" d="M12 3C6.99 3 3 6.2 3 10.14c0 2.5 1.66 4.7 4.17 5.96-.18.65-.66 2.4-.76 2.78-.12.47.17.46.36.34.15-.1 2.4-1.63 3.37-2.29.6.09 1.22.13 1.86.13 5.01 0 9-3.2 9-7.14S17.01 3 12 3z"/>' +
+      '</svg>',
+    apple: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      '<path fill="#FFFFFF" d="M16.36 12.73c-.02-2.3 1.88-3.4 1.96-3.45-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.83-.81-3-.79-1.54.02-2.96.9-3.75 2.28-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.39 0 1.78.74 3 .72 1.24-.02 2.02-1.12 2.78-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.7zM14.1 5.9c.63-.77 1.06-1.83.94-2.9-.91.04-2.01.61-2.67 1.37-.59.68-1.1 1.76-.96 2.8 1.01.08 2.05-.51 2.69-1.27z"/>' +
+      '</svg>',
+  };
   function socialButtons() {
     var list = (PV.oauth && PV.oauth.length ? PV.oauth : ['google', 'kakao'])
       .filter(function (k) { return OAUTH_LABELS[k]; });
     return list.map(function (k) {
-      return '<button type="button" data-oauth="' + k + '">' + OAUTH_LABELS[k] + '</button>';
+      return '<button type="button" data-oauth="' + k + '">' + (OAUTH_ICONS[k] || '') + OAUTH_LABELS[k] + '</button>';
     }).join('');
   }
 
@@ -334,8 +364,13 @@
             if (vw && typeof p.view_count === 'number') vw.textContent = p.view_count;
           }
         });
-        // 뉴스는 운영자가 "웹 공개"를 켠 글만 나가므로 신규 행을 얹지 않는다(anon RPC 는 미공개 뉴스도 준다).
-        if (PV.board !== 'free') return;
+        /* 정적 페이지는 최대 2시간 묵는다 — 그 사이 지워진 글이 남아 있으면 눌러도 없는 글이고,
+           새 글은 아예 안 보인다. 1페이지는 최신 30건이고 여기서 50건을 받아오므로,
+           받아온 목록에 없는 행은 (밀려난 게 아니라) 지워진 행이다. */
+        var live = {}; posts.forEach(function (p) { live[p.id] = true; });
+        tbody.querySelectorAll('tr[data-id]').forEach(function (row) {
+          if (!live[row.dataset.id]) row.remove();
+        });
         var fresh = posts.filter(function (p) { return !staticIds[p.id] && !p.is_pinned; });
         if (fresh.length === 0) return;
         var empty = tbody.querySelector('tr.empty'); if (empty) empty.remove();
@@ -350,12 +385,13 @@
             '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
               '<td class="num">' + (total - i) + '</td>' +
               '<td class="tit"><a href="' + esc(PV.site + '/free/view.html?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
-              '<td class="who">익명 ' + communityAlias(p.id, 0) + '</td><td class="date">' + esc(fmtList(p.published_at)) + '</td>' +
+              '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + '</td><td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
               '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
             '</tr>'));
         });
         var anchor = tbody.querySelector('tr:not(.notice)');
         tbody.insertBefore(frag, anchor || null);
+        retimeDates(tbody);
         var tot = $('#pv-total');
         if (tot) {
           tot.textContent = total;
@@ -426,7 +462,7 @@
   function renderArticle(p) {
     var art = $('#pv-article'); if (!art) return;
     document.title = p.title + ' — ' + (PV.board === 'news' ? '뉴스 게시판' : '자유게시판') + ' — 피클허브 커뮤니티';
-    var who = PV.board === 'news' ? '피클허브' : '익명 ' + communityAlias(p.id, 0);
+    var who = p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0);
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
         '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b></span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
@@ -442,6 +478,14 @@
      DOM 에만 써두면 증가분이 읽기 값으로 덮인다 — 실제로 서버는 1인데 화면은 0 이었다
      (2026-09-16 실측). 그래서 재렌더 뒤 setViews() 가 다시 불리면 최대값이 복원된다. */
   var viewsSeen = null;
+  var amAdmin = false;
+  function checkAdmin() {
+    if (!session) { amAdmin = false; return Promise.resolve(false); }
+    return sb.rpc('is_platform_admin', {}).then(function (r) {
+      amAdmin = r.data === true; return amAdmin;
+    }).catch(function () { amAdmin = false; return false; });
+  }
+
   function setViews(n) {
     if (typeof n === 'number' && (viewsSeen === null || n > viewsSeen)) viewsSeen = n;
     if (viewsSeen === null) return;
@@ -473,9 +517,15 @@
         setViews(data.post.view_count);
         var acts = $('#pv-postactions');
         if (acts) {
-          acts.innerHTML = data.post.is_mine
+          var html = data.post.is_mine
             ? '<button class="btn danger pv-del" data-del-post>삭제</button>'
             : (session ? '<button class="btn" data-report-post>신고</button>' : '');
+          // 상단 고정은 운영자 전용·뉴스 전용 — 서버(hub_pin_community_post)가 다시 판정한다.
+          if (amAdmin && PV.board === 'news') {
+            html += '<button class="btn" data-pin="' + (data.post.is_pinned ? '0' : '1') + '">' +
+              (data.post.is_pinned ? '고정 해제' : '상단 고정') + '</button>';
+          }
+          acts.innerHTML = html;
         }
         var metaWho = $('#pv-article .meta b, .view .meta b');
         if (data.post.is_mine && metaWho && !metaWho.querySelector('.mine')) metaWho.appendChild(el('<span class="mine">내 글</span>'));
@@ -484,8 +534,13 @@
 
   /* ── 이벤트 위임 ───────────────────────────────────────────────────────── */
   document.addEventListener('click', function (ev) {
-    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post]'); if (!t) return;
-    if (t.dataset.pv === 'login') openAuth('login');
+    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post],[data-pin]'); if (!t) return;
+    if (t.dataset.pin) {
+      t.disabled = true;
+      sb.rpc('hub_pin_community_post', { p_post_id: postId, p_pinned: t.dataset.pin === '1' })
+        .then(function (r) { if (r.error) { alert(msg(r.error)); t.disabled = false; } else loadPost(); });
+    }
+    else if (t.dataset.pv === 'login') openAuth('login');
     else if (t.dataset.pv === 'signup') openAuth('signup');
     else if (t.dataset.pv === 'logout') sb.auth.signOut({ scope: 'local' });
     else if (t.dataset.delComment) {
@@ -537,14 +592,15 @@
     authListeners.forEach(function (cb) { try { cb(event); } catch (e) {} });
     if (event === 'PASSWORD_RECOVERY') openNewPassword();
     if (event === 'SIGNED_IN') { checkProfile().then(function (ok) { if (!ok) openProfile(); }); }
-    if (postId) { renderCommentForm(); loadPost(); }
+    if (postId) { renderCommentForm(); checkAdmin().then(loadPost); }
   });
   sb.auth.getSession().then(function (r) {
     session = (r.data && r.data.session) || null;
     renderAccount();
     if (session) checkProfile();
     readyResolve();
+    retimeDates();
     refreshList();
-    if (postId) { renderCommentForm(); loadPost(); bumpView(); }
+    if (postId) { renderCommentForm(); checkAdmin().then(loadPost); bumpView(); }
   });
 })();

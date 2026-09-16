@@ -24,7 +24,6 @@
   var DRAFT_KEY = 'pv-draft-' + PV.board;
   var uploaded = []; // 이 편집 세션에서 올린 경로(등록 안 하고 떠나면 삭제 시도)
   var linkUrl = null; // 뉴스 관련 링크
-  var webPublish = true; // 뉴스 웹 공개
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -403,9 +402,10 @@
       '<button class="x" data-x aria-label="닫기">×</button><h3>발행</h3>' +
       '<div class="row"><div><b>' + esc(title) + '</b><span class="sub">' + plain.length + '자' + (imgCount ? ' · 사진 ' + imgCount + '장' : '') + '</span></div></div>' +
       (isNews
-        ? '<div class="row"><div>웹에 공개<span class="sub">끄면 앱에서만 보입니다</span></div><label class="toggle"><input type="checkbox" id="pub-web"' + (webPublish ? ' checked' : '') + ' /><span></span></label></div>' +
-          '<div class="row" style="display:block"><div>관련 링크 (선택)</div><input type="url" id="pub-link" placeholder="https://" value="' + esc(linkUrl || '') + '" style="margin-top:8px" /></div>'
-        : '<div class="row"><div>익명으로 발행<span class="sub">다른 이용자에게는 글 안에서만 고정되는 6자리 코드로 보이고, 이 웹사이트에도 익명 그대로 공개됩니다.</span></div></div>') +
+        ? '<div class="row" style="display:block"><div>관련 링크 (선택)</div><input type="url" id="pub-link" placeholder="https://" value="' + esc(linkUrl || '') + '" style="margin-top:8px" /></div>'
+        : '') +
+      '<div class="row"><div>' + (isNews ? '뉴스 게시판에 발행' : '익명으로 발행') +
+        '<span class="sub">앱과 이 웹사이트에 함께 올라갑니다. 다른 이용자에게는 글 안에서만 고정되는 6자리 코드로 보입니다(운영자 글은 "관리자"로 표시).</span></div></div>' +
       '<p class="pv-err" hidden></p>' +
       '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">발행</button></div>';
     document.body.appendChild(d);
@@ -416,7 +416,6 @@
       var err = $('.pv-err', d);
       var link = null;
       if (isNews) {
-        webPublish = $('#pub-web', d).checked;
         link = ($('#pub-link', d).value || '').trim() || null;
         if (link && !/^https:\/\//.test(link)) { err.textContent = '링크는 https:// 로 시작해야 합니다.'; err.hidden = false; return; }
       }
@@ -432,11 +431,9 @@
           var id = r.data && r.data.id;
           uploaded = []; // 글에 귀속됐다
           try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
-          var next = isNews && webPublish ? App.sb.rpc('hub_set_news_web_publish', { p_post_id: id, p_publish: true }) : Promise.resolve({});
-          return next.then(function () {
-            dirty = false;
-            location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
-          });
+          // 436: 웹 공개 토글 폐지 — 뉴스도 자유게시판처럼 발행 즉시 앱·웹 모두에 나간다.
+          dirty = false;
+          location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
         }).catch(function (e) {
           submitting = false; $('#pub-go', d).disabled = false; err.textContent = errText(e); err.hidden = false; status('');
         });
