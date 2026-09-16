@@ -1,10 +1,10 @@
 /*
  * 피클허브 커뮤니티 웹 — 글쓰기 페이지(write.html) 편집기 (오너 결정 2026-09-15, 네이버 스마트에디터 참고).
  *
- * 구조: 헤더(목록·게시판·임시저장 표시·발행) + 2줄 도구 막대(삽입 / 서식) + 넓은 문서(제목·본문).
+ * 구조: 헤더(목록·게시판·임시저장 표시·게시) + 2줄 도구 막대(삽입 / 서식) + 넓은 문서(제목·본문).
  * 서식(굵게·기울임·밑줄·글자색·크기·정렬)과 사진(20MB 이하만 받고 캔버스로 다운사이징·재인코딩해
  * 업로드 — EXIF 도 이때 사라진다). 사진을 누르면 사진 위에 정렬·크기·순서·삭제 도구가 뜬다.
- * 발행은 확인 패널을 거친다(뉴스: 웹 공개 토글·관련 링크). 작성 중 내용은 이 브라우저에 임시저장된다.
+ * 게시는 확인 패널을 거친다(뉴스: 웹 공개 토글·관련 링크). 작성 중 내용은 이 브라우저에 임시저장된다.
  *
  * 저장 형식은 HTML 이 아니라 모델(rich.mjs)이다. contenteditable 의 DOM 을 걸어 모델로 직렬화하는
  * 과정이 곧 정제다 — 허용된 서식만 남고, 붙여넣은 마크업·스크립트는 살아남지 못한다.
@@ -106,35 +106,78 @@
   root.addEventListener('keyup', refreshToolbar);
   root.addEventListener('mouseup', refreshToolbar);
 
-  /* ── 사진: 선택 → 20MB 검사 → 다운사이징(JPEG) → 업로드 → 커서 위치에 figure ─────── */
+  /* ── 사진: 선택 → 20MB 검사 → 다운사이징(JPEG) → **미리보기** → 확인해야 업로드 ───────
+     고르자마자 올라가면 잘못 고른 사진도 이미 서버에 남는다(지워도 파일 정리가 한 박자 늦다).
+     확인 전까지는 이 브라우저 안에만 있고, 취소하면 아무것도 올라가지 않는다. */
   var fileInput = $('#ed-file');
   $('#ed-add-image').addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function () {
     var files = Array.prototype.slice.call(fileInput.files || []);
     fileInput.value = '';
     if (!files.length) return;
-    var current = root.querySelectorAll('figure.ed-img').length;
-    if (current + files.length > MAX_IMAGES) { status('사진은 글 하나에 ' + MAX_IMAGES + '장까지 넣을 수 있습니다.', true); return; }
-    var chain = Promise.resolve();
-    files.forEach(function (f) { chain = chain.then(function () { return addImage(f); }); });
-    chain.catch(function (e) { status(errText(e), true); });
+    var room = MAX_IMAGES - root.querySelectorAll('figure.ed-img').length;
+    if (files.length > room) {
+      status('사진은 글 하나에 ' + MAX_IMAGES + '장까지 넣을 수 있습니다.' + (room > 0 ? ' (' + room + '장 더 가능)' : ''), true);
+      return;
+    }
+    var ok = files.filter(function (f) {
+      if (f.size > MAX_ORIGINAL) { status(f.name + ': 20MB 이하 사진만 올릴 수 있습니다.', true); return false; }
+      if (!/^image\//.test(f.type)) { status(f.name + ': 이미지 파일이 아닙니다.', true); return false; }
+      return true;
+    });
+    if (!ok.length) return;
+    status('사진 준비 중…');
+    Promise.all(ok.map(function (f) {
+      return downsize(f).then(function (out) { out.name = f.name; return out; });
+    })).then(function (items) {
+      status('');
+      openPhotoPreview(items);
+    }).catch(function (e) { status(errText(e), true); });
   });
 
-  function addImage(file) {
-    if (file.size > MAX_ORIGINAL) { status(file.name + ': 20MB 이하 사진만 올릴 수 있습니다.', true); return Promise.resolve(); }
-    if (!/^image\//.test(file.type)) { status(file.name + ': 이미지 파일이 아닙니다.', true); return Promise.resolve(); }
-    status('사진 처리 중…');
-    return downsize(file).then(function (out) {
-      var path = 'posts/' + draftId + '/' + uuid() + '.jpg';
+  function kb(n) { return n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
+
+  /** 미리보기 — 여기서 확인해야 실제로 올라간다. 취소하면 업로드도, 흔적도 없다. */
+  function openPhotoPreview(items) {
+    var urls = items.map(function (it) { return URL.createObjectURL(it.blob); });
+    var d = document.createElement('dialog'); d.className = 'pv ned-photos';
+    d.innerHTML =
+      '<button class="x" data-x aria-label="닫기">×</button><h3>사진 확인</h3>' +
+      '<p class="pv-note">확인을 누르면 올라갑니다. 긴 변 ' + MAX_EDGE + 'px 로 줄이고 위치 정보는 지웠습니다.</p>' +
+      '<div class="pv-photos">' + items.map(function (it, i) {
+        return '<figure><img src="' + urls[i] + '" alt="" /><figcaption>' +
+          it.w + '×' + it.h + ' · ' + kb(it.blob.size) + '</figcaption></figure>';
+      }).join('') + '</div>' +
+      '<p class="pv-err" hidden></p>' +
+      '<div class="foot"><button type="button" class="btn" data-x>취소</button>' +
+      '<button type="button" class="btn primary" id="ph-go">확인</button></div>';
+    document.body.appendChild(d);
+    function cleanup() { urls.forEach(function (u) { URL.revokeObjectURL(u); }); d.remove(); }
+    d.addEventListener('close', cleanup);
+    d.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
+    d.showModal();
+    $('#ph-go', d).addEventListener('click', function () {
+      var go = $('#ph-go', d); go.disabled = true;
       status('업로드 중…');
-      return App.sb.storage.from(Rich.BUCKET).upload(path, out.blob, { contentType: 'image/jpeg', upsert: false }).then(function (r) {
+      var chain = Promise.resolve();
+      items.forEach(function (it) { chain = chain.then(function () { return uploadImage(it); }); });
+      chain.then(function () { status(''); d.close(); })
+        .catch(function (e) {
+          go.disabled = false; status('');
+          var err = $('.pv-err', d); if (err) { err.textContent = errText(e); err.hidden = false; }
+        });
+    });
+  }
+
+  function uploadImage(out) {
+    var path = 'posts/' + draftId + '/' + uuid() + '.jpg';
+    return App.sb.storage.from(Rich.BUCKET).upload(path, out.blob, { contentType: 'image/jpeg', upsert: false })
+      .then(function (r) {
         if (r.error) throw r.error;
         uploaded.push(path);
         insertFigure(path, out.w, out.h);
-        status('');
         markDirty();
       });
-    });
   }
 
   /** 긴 변 1600px 이하 JPEG 로 재인코딩 — 용량을 줄이고 EXIF(위치 등)를 떼어낸다. */
@@ -347,12 +390,12 @@
         var paths = Array.isArray(post.image_paths) ? post.image_paths : [];
         var doc = Rich.sanitizeRich(post.body_rich, paths);
         root.innerHTML = (doc && doc.blocks.length) ? richToEditorHtml(doc) : plainToEditorHtml(post.body);
-        // 도구 막대는 저장본에 없으므로 여기서 붙인다(발행 때 다시 떼어낸다).
+        // 도구 막대는 저장본에 없으므로 여기서 붙인다(게시 때 다시 떼어낸다).
         root.querySelectorAll('figure.ed-img').forEach(function (f) {
           f.querySelectorAll('.ed-imgtools').forEach(function (t) { t.remove(); });
           f.insertAdjacentHTML('beforeend', IMG_TOOLS);
         });
-        uploaded = paths.slice(); // 편집 중 지운 사진은 발행 때 파일까지 정리된다
+        uploaded = paths.slice(); // 편집 중 지운 사진은 게시 때 파일까지 정리된다
         linkUrl = post.link_url || null;
         var lb = $('#ed-link-btn'); if (lb) lb.classList.toggle('on', !!linkUrl);
         updatePlaceholder();
@@ -366,7 +409,7 @@
 
   /* ── 올렸다가 안 쓴 사진 정리 ────────────────────────────────────────────
      사진을 도구로 지우면 그 자리에서 파일까지 지운다(imgAction remove). 하지만
-     전체 선택 후 삭제처럼 다른 경로로 사라지면 파일만 남는다. 그래서 (1) 발행 직전,
+     전체 선택 후 삭제처럼 다른 경로로 사라지면 파일만 남는다. 그래서 (1) 게시 직전,
      (2) 초안을 버릴 때, (3) 오래된 초안을 자동으로 버릴 때 본문에 없는 업로드를 지운다.
      편집 중에는 하지 않는다 — 실행 취소로 되살아난 사진의 파일이 이미 없으면 더 나쁘다.
      삭제 권한은 432 의 "hub community owner delete" 정책(본인 업로드 한정)이다. */
@@ -440,7 +483,7 @@
     });
   }
 
-  /* ── 발행 — 확인 패널을 거친다 ─────────────────────────────────────────── */
+  /* ── 게시 — 확인 패널을 거친다 ─────────────────────────────────────────── */
   var submitting = false;
   $('#ed-submit').addEventListener('click', function () {
     if (submitting) return;
@@ -460,7 +503,7 @@
     var d = document.createElement('dialog'); d.className = 'pv ned-pub';
     var imgCount = paths.length;
     d.innerHTML =
-      '<button class="x" data-x aria-label="닫기">×</button><h3>' + (editId ? '수정' : '발행') + '</h3>' +
+      '<button class="x" data-x aria-label="닫기">×</button><h3>' + (editId ? '수정' : '게시') + '</h3>' +
       '<div class="row"><div><b>' + esc(title) + '</b><span class="sub">' + plain.length + '자' + (imgCount ? ' · 사진 ' + imgCount + '장' : '') + '</span></div></div>' +
       (isNews && !editId
         ? '<div class="row" style="display:block"><div>관련 링크 (선택)</div><input type="url" id="pub-link" placeholder="https://" value="' + esc(linkUrl || '') + '" style="margin-top:8px" /></div>'
@@ -468,10 +511,10 @@
       (isNews && editId && linkUrl
         ? '<div class="row"><div>관련 링크<span class="sub">' + esc(linkUrl) + ' — 수정에서는 바꿀 수 없습니다(그대로 유지됩니다).</span></div></div>'
         : '') +
-      '<div class="row"><div>' + (isNews ? '뉴스 게시판에 발행' : '익명으로 발행') +
+      '<div class="row"><div>' + (isNews ? '뉴스 게시판에 게시' : '익명으로 게시') +
         '<span class="sub">앱과 이 웹사이트에 함께 올라갑니다. 다른 이용자에게는 글 안에서만 고정되는 6자리 코드로 보입니다(운영자 글은 "관리자"로 표시).</span></div></div>' +
       '<p class="pv-err" hidden></p>' +
-      '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">' + (editId ? '수정 저장' : '발행') + '</button></div>';
+      '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">' + (editId ? '수정 저장' : '게시') + '</button></div>';
     document.body.appendChild(d);
     d.addEventListener('close', function () { d.remove(); });
     d.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
@@ -484,7 +527,7 @@
         if (link && !/^https:\/\//.test(link)) { err.textContent = '링크는 https:// 로 시작해야 합니다.'; err.hidden = false; return; }
       }
       var hasFormat = doc.blocks.some(function (b) { return b.t === 'img' || b.align || b.runs.some(function (r) { return r.b || r.i || r.u || r.color || r.size; }); });
-      submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status(editId ? '저장 중…' : '발행 중…');
+      submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status(editId ? '저장 중…' : '게시 중…');
       cleanupUnused(); // 본문에서 빠진 사진은 글과 함께 남기지 않는다
       App.requireMember(function () {
         var call = editId
@@ -501,7 +544,7 @@
           var id = editId || (r.data && r.data.id);
           uploaded = []; // 글에 귀속됐다
           try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
-          // 436: 웹 공개 토글 폐지 — 뉴스도 자유게시판처럼 발행 즉시 앱·웹 모두에 나간다.
+          // 436: 웹 공개 토글 폐지 — 뉴스도 자유게시판처럼 게시 즉시 앱·웹 모두에 나간다.
           dirty = false;
           location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
         }).catch(function (e) {
