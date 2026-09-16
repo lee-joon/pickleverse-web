@@ -20,7 +20,65 @@
 (function () {
   'use strict';
   var PV = window.PV || {};
-  if (!PV.me) return;
+  if (!PV.me && !PV.duprConnect) return;
+
+  /* 팝업(dupr-connect.html)에서 도는 경로 — 우리 오리진이라 같은 세션을 그대로 쓴다.
+     DUPR 페이지를 이 창의 iframe 으로 띄우므로 그 페이지가 parent 로 쏘든 opener 로 쏘든
+     둘 다 우리 코드가 받는다(팝업에 DUPR 을 직접 띄우면 parent 가 자기 자신이라 못 받는다). */
+/* DUPR SSO 가 부모 창으로 결과를 쏘는 출처. 규정상 임베드 iframe 이 유일한 경로라
+     (docs/dupr-api.md §1) 우리 페이지가 남의 message 를 받아 처리할 수 있는 상태가 된다 —
+     서버가 토큰 소유를 재검증하긴 하지만, 출처를 먼저 막는 게 순서다. dupr.gg 는
+     mydupr.com 으로 302 되므로 최종 출처까지 함께 허용한다(실측). */
+  var DUPR_ORIGINS = [
+    'https://dupr.gg', 'https://www.dupr.gg', 'https://mydupr.com', 'https://www.mydupr.com',
+    'https://dashboard.dupr.com', 'https://uat.dupr.gg', 'https://uat.mydupr.com',
+  ];
+
+
+  function bootConnect() {
+    var App = window.PVApp;
+    if (!App) return;
+    App.ready.then(function () {
+      var slot = document.getElementById('dc-body');
+      if (!slot) return;
+      if (!App.session) { slot.innerHTML = '<p class="dc-msg">로그인이 필요합니다. 이 창을 닫고 다시 시도해 주세요.</p>'; return; }
+      if (!PV.dupr || !PV.dupr.clientKey) { slot.innerHTML = '<p class="dc-msg">DUPR 연동 설정이 준비되지 않았습니다.</p>'; return; }
+      var url = PV.dupr.ssoBase + '/login-external-app/' + btoa(PV.dupr.clientKey);
+      slot.innerHTML = '<iframe title="DUPR 로그인" src="' + escAttr(url) + '"></iframe><p class="dc-msg" id="dc-msg" hidden></p>';
+      var handled = false;
+      function say(t) { var n = document.getElementById('dc-msg'); if (n) { n.textContent = t || ''; n.hidden = !t; } }
+      window.addEventListener('message', function (ev) {
+        if (handled) return;
+        if (DUPR_ORIGINS.indexOf(ev.origin) < 0) return;
+        var msg = ev.data;
+        if (typeof msg === 'string') { try { msg = JSON.parse(msg); } catch (e) { return; } }
+        if (!msg || !msg.userToken || !msg.refreshToken || !msg.duprId) return;
+        handled = true;
+        say('연결하는 중…');
+        App.sb.auth.getSession().then(function (r) {
+          var token = r && r.data && r.data.session && r.data.session.access_token;
+          return App.sb.functions.invoke('dupr-link', {
+            body: { action: 'link', userToken: msg.userToken, refreshToken: msg.refreshToken,
+                    duprId: msg.duprId, duprNumericId: msg.id },
+            headers: token ? { Authorization: 'Bearer ' + token } : undefined,
+          });
+        }).then(function (res) {
+          if (!res.error && res.data && res.data.linked) {
+            try { if (window.opener) window.opener.postMessage({ pvDupr: 'linked' }, PV.site); } catch (e) {}
+            say('연결됐습니다. 창을 닫습니다.');
+            setTimeout(function () { window.close(); }, 700);
+            return;
+          }
+          handled = false;
+          say('연결하지 못했습니다. 다시 시도해 주세요.');
+        });
+      });
+    });
+  }
+
+  function escAttr(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
 
   function boot() {
     var App = window.PVApp;
@@ -80,6 +138,13 @@
       return (PV.oauth || []).filter(function (k) { return PROVIDERS[k] && have.indexOf(k) < 0; });
     }
 
+    /* 팝업이 끝났다고 알려 오면 카드를 다시 읽는다. 출처는 우리 사이트로 고정한다. */
+    window.addEventListener('message', function (ev) {
+      if (ev.origin !== PV.site) return;
+      if (!ev.data || ev.data.pvDupr !== 'linked') return;
+      loaded = true; load();
+    });
+
     function start() {
       if (!App.session) {
         loaded = false;
@@ -97,14 +162,6 @@
     /* 현재 값 — 폼이 수집하지 않는 필드까지 전부 들고 있어야 저장이 지우지 않는다. */
     var row = null, prof = null, dupr = { linked: false };
 
-    /* DUPR SSO 가 부모 창으로 결과를 쏘는 출처. 규정상 임베드 iframe 이 유일한 경로라
-       (docs/dupr-api.md §1) 우리 페이지가 남의 message 를 받아 처리할 수 있는 상태가 된다 —
-       서버가 토큰 소유를 재검증하긴 하지만, 출처를 먼저 막는 게 순서다. dupr.gg 는
-       mydupr.com 으로 302 되므로 최종 출처까지 함께 허용한다(실측). */
-    var DUPR_ORIGINS = [
-      'https://dupr.gg', 'https://www.dupr.gg', 'https://mydupr.com', 'https://www.mydupr.com',
-      'https://dashboard.dupr.com', 'https://uat.dupr.gg', 'https://uat.mydupr.com',
-    ];
 
     function load() {
       var uid = App.session.user.id;
@@ -331,7 +388,14 @@
 
       bodyEl.querySelectorAll('[data-dupr]').forEach(function (b) {
         b.addEventListener('click', function () {
-          if (b.dataset.dupr === 'link') openDuprSso(); else unlinkDupr(b);
+          if (b.dataset.dupr !== 'link') { unlinkDupr(b); return; }
+          // 새 창이 보기 편하다(오너 2026-09-16). 팝업이 막히면 모달로 떨어진다.
+          var w = null;
+          try {
+            w = window.open(PV.site + '/dupr-connect.html', 'pvdupr',
+              'width=520,height=780,noopener=no,noreferrer=no');
+          } catch (e) { w = null; }
+          if (w) { try { w.focus(); } catch (e) {} } else openDuprSso();
         });
       });
 
@@ -406,6 +470,7 @@
     }
   }
 
-  if (window.PVApp) boot();
-  else document.addEventListener('DOMContentLoaded', boot);
+  var entry = PV.duprConnect ? bootConnect : boot;
+  if (window.PVApp) entry();
+  else document.addEventListener('DOMContentLoaded', entry);
 })();
