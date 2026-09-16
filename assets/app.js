@@ -147,11 +147,24 @@
   /* ── 세션 / 계정 슬롯 ──────────────────────────────────────────────────── */
   var session = null;
   var me = null; // 본인 행(users) — 본인 화면에만 쓴다. 다른 사람의 행을 읽는 경로는 없다.
+  /* 이 계정에 아직 안 붙은 로그인 수단 — 같은 사람이 수단만 바꿔 들어와도 다른 계정이 되는 걸 막는다.
+     서버는 로그인한 본인 계정에만 붙인다(Supabase manual linking). */
+  function missingProviders() {
+    if (!session || !session.user) return [];
+    var have = {};
+    (session.user.identities || []).forEach(function (i) { have[i.provider] = true; });
+    ((session.user.app_metadata || {}).providers || []).forEach(function (p) { have[p] = true; });
+    return (PV.oauth || []).filter(function (k) { return !have[k]; });
+  }
+
   function renderAccount() {
     var slot = $('#pv-account'); if (!slot) return;
     if (session) {
       var name = (me && me.real_name) || (session.user && session.user.email) || '회원';
+      var missing = missingProviders();
       slot.innerHTML = '<span class="me" title="다른 이용자에게는 익명으로 보입니다">' + esc(name) + '</span>' +
+        (missing.length ? '<button class="lnk" data-link="' + esc(missing[0]) + '">' +
+          esc((OAUTH_LABELS[missing[0]] || '').replace('로 계속하기', '') || missing[0]) + ' 연결</button>' : '') +
         '<button class="lnk" data-pv="logout">로그아웃</button>';
     } else {
       slot.innerHTML = '<button class="lnk" data-pv="login">로그인</button><button class="lnk" data-pv="signup">회원가입</button>';
@@ -518,7 +531,8 @@
         var acts = $('#pv-postactions');
         if (acts) {
           var html = data.post.is_mine
-            ? '<button class="btn danger pv-del" data-del-post>삭제</button>'
+            ? '<a class="btn" href="' + esc(PV.site + '/' + (PV.board === 'news' ? 'news' : 'free') + '/write.html?edit=' + data.post.id) + '">수정</a>' +
+              '<button class="btn danger pv-del" data-del-post>삭제</button>'
             : (session ? '<button class="btn" data-report-post>신고</button>' : '');
           // 상단 고정은 운영자 전용·뉴스 전용 — 서버(hub_pin_community_post)가 다시 판정한다.
           if (amAdmin && PV.board === 'news') {
@@ -534,8 +548,13 @@
 
   /* ── 이벤트 위임 ───────────────────────────────────────────────────────── */
   document.addEventListener('click', function (ev) {
-    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post],[data-pin]'); if (!t) return;
-    if (t.dataset.pin) {
+    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post],[data-pin],[data-link]'); if (!t) return;
+    if (t.dataset.link) {
+      // 지금 계정에 이 로그인 수단을 붙인다 — 다음부터는 어느 수단으로 들어와도 같은 계정이다.
+      sb.auth.linkIdentity({ provider: t.dataset.link, options: { redirectTo: location.href.split('#')[0] } })
+        .then(function (r) { if (r.error) alert(msg(r.error)); });
+    }
+    else if (t.dataset.pin) {
       t.disabled = true;
       sb.rpc('hub_pin_community_post', { p_post_id: postId, p_pinned: t.dataset.pin === '1' })
         .then(function (r) { if (r.error) { alert(msg(r.error)); t.disabled = false; } else loadPost(); });

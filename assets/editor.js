@@ -24,6 +24,9 @@
   var DRAFT_KEY = 'pv-draft-' + PV.board;
   var uploaded = []; // 이 편집 세션에서 올린 경로(등록 안 하고 떠나면 삭제 시도)
   var linkUrl = null; // 뉴스 관련 링크
+  // ?edit=<id> 로 들어오면 수정 모드다. 서버(hub_update_community_post)가 본인 글인지 다시 판정한다.
+  var editId = (function () { try { return new URLSearchParams(location.search).get('edit'); } catch (e) { return null; } })();
+  var loadedEdit = false;
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -44,7 +47,7 @@
       App.checkProfile().then(function (ok) {
         if (!ok) { App.openProfile(applyGate); return; }
         gate.hidden = true; form.hidden = false;
-        offerRestore();
+        if (editId) loadForEdit(); else offerRestore();
       });
     } else {
       gate.hidden = false; form.hidden = true;
@@ -304,6 +307,63 @@
     return { v: 1, blocks: out };
   }
 
+  /* ── 수정 모드: 서버의 모델을 편집기 DOM 으로 되돌린다 ──────────────────
+     serialize() 가 읽는 표현만 쓴다(b/i/u, font size, style color, div text-align,
+     figure.ed-img) — 그래야 불러오기→저장 왕복에서 서식이 보존된다. */
+  var SIZE_ATTR = { sm: '2', md: '3', lg: '5', xl: '7' };
+  function richToEditorHtml(doc) {
+    return doc.blocks.map(function (b) {
+      if (b.t === 'img') return figureHtml(b.path, b.size, b.align, b.w, b.h);
+      var inner = b.runs.map(function (r) {
+        var t = esc(r.text).replace(/\n/g, '<br />');
+        if (!t) return '';
+        var open = '', close = '';
+        if (r.size && r.size !== 'md') { open += '<font size="' + (SIZE_ATTR[r.size] || '3') + '">'; close = '</font>' + close; }
+        if (r.color) { open += '<span style="color:' + esc(r.color) + '">'; close = '</span>' + close; }
+        if (r.b) { open += '<b>'; close = '</b>' + close; }
+        if (r.i) { open += '<i>'; close = '</i>' + close; }
+        if (r.u) { open += '<u>'; close = '</u>' + close; }
+        return open + t + close;
+      }).join('');
+      var align = b.align && b.align !== 'left' ? ' style="text-align:' + b.align + '"' : '';
+      return '<div' + align + '>' + (inner || '<br />') + '</div>';
+    }).join('');
+  }
+  function plainToEditorHtml(text) {
+    return String(text || '').split(/\n/).map(function (line) {
+      return '<div>' + (esc(line) || '<br />') + '</div>';
+    }).join('');
+  }
+  function loadForEdit() {
+    if (loadedEdit) return;
+    loadedEdit = true;
+    status('불러오는 중…');
+    App.sb.rpc('get_hub_community_post', { p_post_id: editId, p_comment_limit: 1, p_comment_after_at: null, p_comment_after_id: null })
+      .then(function (r) {
+        var post = r.data && r.data.post;
+        if (r.error || !post) throw (r.error || new Error('Post not found'));
+        if (!post.is_mine) throw new Error('Not authorized');
+        $('#ed-title').value = post.title || '';
+        var paths = Array.isArray(post.image_paths) ? post.image_paths : [];
+        var doc = Rich.sanitizeRich(post.body_rich, paths);
+        root.innerHTML = (doc && doc.blocks.length) ? richToEditorHtml(doc) : plainToEditorHtml(post.body);
+        // 도구 막대는 저장본에 없으므로 여기서 붙인다(발행 때 다시 떼어낸다).
+        root.querySelectorAll('figure.ed-img').forEach(function (f) {
+          f.querySelectorAll('.ed-imgtools').forEach(function (t) { t.remove(); });
+          f.insertAdjacentHTML('beforeend', IMG_TOOLS);
+        });
+        uploaded = paths.slice(); // 편집 중 지운 사진은 발행 때 파일까지 정리된다
+        linkUrl = post.link_url || null;
+        var lb = $('#ed-link-btn'); if (lb) lb.classList.toggle('on', !!linkUrl);
+        updatePlaceholder();
+        status('');
+      })
+      .catch(function (e) {
+        status(String(e && e.message) === 'Not authorized' ? '내가 쓴 글만 수정할 수 있습니다.' : errText(e), true);
+        form.hidden = true;
+      });
+  }
+
   /* ── 올렸다가 안 쓴 사진 정리 ────────────────────────────────────────────
      사진을 도구로 지우면 그 자리에서 파일까지 지운다(imgAction remove). 하지만
      전체 선택 후 삭제처럼 다른 경로로 사라지면 파일만 남는다. 그래서 (1) 발행 직전,
@@ -334,6 +394,7 @@
   var dirty = false, saveTimer = null;
   function markDirty() { dirty = true; updatePlaceholder(); if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 1500); }
   function saveDraft() {
+    if (editId) return; // 수정 모드는 새 글 초안과 무관하다
     try {
       var html = root.innerHTML, title = $('#ed-title').value;
       if (!title.trim() && !root.textContent.trim() && !root.querySelector('figure')) { localStorage.removeItem(DRAFT_KEY); $('#ed-draft').textContent = ''; return; }
@@ -399,15 +460,18 @@
     var d = document.createElement('dialog'); d.className = 'pv ned-pub';
     var imgCount = paths.length;
     d.innerHTML =
-      '<button class="x" data-x aria-label="닫기">×</button><h3>발행</h3>' +
+      '<button class="x" data-x aria-label="닫기">×</button><h3>' + (editId ? '수정' : '발행') + '</h3>' +
       '<div class="row"><div><b>' + esc(title) + '</b><span class="sub">' + plain.length + '자' + (imgCount ? ' · 사진 ' + imgCount + '장' : '') + '</span></div></div>' +
-      (isNews
+      (isNews && !editId
         ? '<div class="row" style="display:block"><div>관련 링크 (선택)</div><input type="url" id="pub-link" placeholder="https://" value="' + esc(linkUrl || '') + '" style="margin-top:8px" /></div>'
+        : '') +
+      (isNews && editId && linkUrl
+        ? '<div class="row"><div>관련 링크<span class="sub">' + esc(linkUrl) + ' — 수정에서는 바꿀 수 없습니다(그대로 유지됩니다).</span></div></div>'
         : '') +
       '<div class="row"><div>' + (isNews ? '뉴스 게시판에 발행' : '익명으로 발행') +
         '<span class="sub">앱과 이 웹사이트에 함께 올라갑니다. 다른 이용자에게는 글 안에서만 고정되는 6자리 코드로 보입니다(운영자 글은 "관리자"로 표시).</span></div></div>' +
       '<p class="pv-err" hidden></p>' +
-      '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">발행</button></div>';
+      '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">' + (editId ? '수정 저장' : '발행') + '</button></div>';
     document.body.appendChild(d);
     d.addEventListener('close', function () { d.remove(); });
     d.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
@@ -415,20 +479,26 @@
     $('#pub-go', d).addEventListener('click', function () {
       var err = $('.pv-err', d);
       var link = null;
-      if (isNews) {
+      if (isNews && !editId) {
         link = ($('#pub-link', d).value || '').trim() || null;
         if (link && !/^https:\/\//.test(link)) { err.textContent = '링크는 https:// 로 시작해야 합니다.'; err.hidden = false; return; }
       }
       var hasFormat = doc.blocks.some(function (b) { return b.t === 'img' || b.align || b.runs.some(function (r) { return r.b || r.i || r.u || r.color || r.size; }); });
-      submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status('발행 중…');
+      submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status(editId ? '저장 중…' : '발행 중…');
       cleanupUnused(); // 본문에서 빠진 사진은 글과 함께 남기지 않는다
       App.requireMember(function () {
-        App.sb.rpc('hub_create_community_post', {
-          p_board_kind: PV.board, p_title: title, p_body: plain, p_image_paths: paths, p_link_url: link,
-          p_body_rich: hasFormat ? doc : null,
-        }).then(function (r) {
+        var call = editId
+          ? App.sb.rpc('hub_update_community_post', {
+              p_post_id: editId, p_title: title, p_body: plain,
+              p_image_paths: paths, p_body_rich: hasFormat ? doc : null,
+            })
+          : App.sb.rpc('hub_create_community_post', {
+              p_board_kind: PV.board, p_title: title, p_body: plain, p_image_paths: paths, p_link_url: link,
+              p_body_rich: hasFormat ? doc : null,
+            });
+        call.then(function (r) {
           if (r.error) throw r.error;
-          var id = r.data && r.data.id;
+          var id = editId || (r.data && r.data.id);
           uploaded = []; // 글에 귀속됐다
           try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
           // 436: 웹 공개 토글 폐지 — 뉴스도 자유게시판처럼 발행 즉시 앱·웹 모두에 나간다.
