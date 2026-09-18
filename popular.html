@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#00361A" />
-    <title>내 정보 — 피클허브 커뮤니티</title>
-    <meta name="description" content="계정과 회원 정보를 확인하고 수정합니다." />
-    <link rel="canonical" href="https://picklehubkorea.com/me.html" />
+    <title>인기글 — 뉴스 게시판 — 피클허브 커뮤니티</title>
+    <meta name="description" content="뉴스 게시판에서 좋아요를 많이 받은 글" />
+    <link rel="canonical" href="https://picklehubkorea.com/popular.html" />
     <link rel="icon" href="https://picklehubkorea.com/assets/logo-128.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="피클허브 커뮤니티" />
-    <meta property="og:title" content="내 정보 — 피클허브 커뮤니티" />
-    <meta property="og:description" content="계정과 회원 정보를 확인하고 수정합니다." />
-    <meta property="og:url" content="https://picklehubkorea.com/me.html" />
+    <meta property="og:title" content="인기글 — 뉴스 게시판 — 피클허브 커뮤니티" />
+    <meta property="og:description" content="뉴스 게시판에서 좋아요를 많이 받은 글" />
+    <meta property="og:url" content="https://picklehubkorea.com/popular.html" />
     <meta property="og:image" content="https://picklehubkorea.com/assets/logo-256.png" />
-    <meta name="robots" content="noindex" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" />
@@ -437,11 +437,11 @@
   }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"me","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":true,"duprConnect":false,"popular":false};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
     <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=8ee7c01c4f"></script>
     <script src="https://picklehubkorea.com/assets/app.js?v=8ee7c01c4f" defer></script>
-    <script src="https://picklehubkorea.com/assets/me.js?v=8ee7c01c4f" defer></script>
+    
   </head>
   <body>
     <div class="top">
@@ -458,24 +458,43 @@
     <div class="gall">
       <div class="wrap">
         <div class="name">
-          <h1>내 정보</h1>
+          <h1>뉴스 게시판</h1>
           
         </div>
         <nav class="tabs">
-          <a href="https://picklehubkorea.com/">뉴스 게시판</a>
+          <a class="on" href="https://picklehubkorea.com/">뉴스 게시판</a>
           <a href="https://picklehubkorea.com/free/">자유게시판</a>
         </nav>
       </div>
     </div>
     <main class="wrap">
-      <div class="me">
-        <div class="me-gate" id="me-gate">
-          로그인하면 계정과 회원 정보를 확인하고 바꿀 수 있습니다.
-          <br /><button type="button" class="btn primary" id="me-gate-login">로그인</button>
-        </div>
-        <div id="me-body" hidden></div>
+      <nav class="sorts">
+        <a href="https://picklehubkorea.com/">최신글</a>
+        <a class="on" href="https://picklehubkorea.com/popular.html">인기글</a>
+      </nav>
+      <div class="toolbar">
+        <span hidden>전체글 <b id="pv-total">0</b></span>
+        <a class="btn primary" href="https://picklehubkorea.com/news/write.html" title="로그인하면 바로 쓸 수 있습니다">글쓰기</a>
       </div>
-      
+      <table class="list">
+        <thead><tr>
+          <th class="num">번호</th><th class="tit">제목</th><th class="who">글쓴이</th><th class="date">작성일</th><th class="views">조회</th><th class="likes">좋아요</th>
+        </tr></thead>
+        <tbody id="pv-list">
+        <tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>새 소식이 올라오면 여기에 표시됩니다.<br /><a class="btn" href="https://picklehubkorea.com/free/">자유게시판 보기</a></td></tr>
+        </tbody>
+      </table>
+
+      <div class="promo">
+        <div>
+          <b>피클허브 앱에서 더 할 수 있는 것</b>
+          <p>오픈코트 일정 확인과 참가 신청, 클럽 찾기는 앱에서 할 수 있습니다.</p>
+        </div>
+        <div class="stores">
+          <a class="btn" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store</a>
+          <a class="btn" href="https://play.google.com/store/apps/details?id=com.pickleverse.hub">Google Play</a>
+        </div>
+      </div>
     </main>
     <footer>
       <div class="wrap">

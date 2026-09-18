@@ -228,6 +228,30 @@
   .cmts .when .pv-del { text-decoration:none; }
   table.list tr.fresh td { background:var(--accent-soft); }
   /* 실력대 배지 — 이름표 옆의 작은 칩. 눈에 띄되 작성자 표기를 가리지 않는다. */
+  table.list .likes { width:56px; text-align:center; color:var(--sub); font-size:12px; }
+  .ico-paddle, .ico-thumb { width:1em; height:1em; vertical-align:-2px; }
+  .ico-thumb { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
+  /* 글 좋아요 — 패들. 본문과 목록 버튼 사이에 홀로 둔다(가장 큰 반응 지점). */
+  .likes { display:flex; justify-content:center; padding:var(--s4) 0 var(--s2); }
+  .likebtn { display:inline-flex; align-items:center; gap:7px; min-height:40px; padding:8px 18px; cursor:pointer;
+             border:1px solid var(--line-strong); border-radius:999px; background:var(--surface); color:var(--sub);
+             font:inherit; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .likebtn:hover { filter:brightness(.97); }
+  .likebtn.on { color:var(--brand); border-color:var(--brand); background:var(--brand-soft); }
+  .likebtn:disabled { opacity:.6; cursor:default; }
+  /* 댓글 반응 — 엄지척/엄지다운. 작성자·본문 옆에 작게. */
+  .cmts .react { display:inline-flex; gap:var(--s2); margin-left:var(--s2); }
+  .rbtn { display:inline-flex; align-items:center; gap:3px; padding:2px 6px; cursor:pointer; font:inherit; font-size:11px;
+          color:var(--sub); background:none; border:1px solid transparent; border-radius:5px; font-variant-numeric:tabular-nums; }
+  .rbtn:hover { border-color:var(--line); color:var(--ink); }
+  .rbtn.on { color:var(--brand); border-color:var(--brand); }
+  .rbtn.down.on { color:var(--danger); border-color:var(--danger); }
+  .rbtn:disabled { opacity:.6; cursor:default; }
+  /* 최신글 | 인기글 — 판 탭 아래 한 줄. 켜진 쪽만 색으로 구분한다. */
+  .sorts { display:flex; gap:var(--s1); padding:var(--s3) 0 0; }
+  .sorts a { font-size:12px; color:var(--sub); padding:4px 10px; border:1px solid var(--line); border-radius:999px; }
+  .sorts a.on { color:var(--brand); border-color:var(--brand); background:var(--brand-soft); font-weight:700; }
+  .sorts a:hover { text-decoration:none; color:var(--ink); }
   .band { display:inline-block; margin-left:6px; padding:0 5px; font-size:11px; line-height:17px;
           color:var(--sub); border:1px solid var(--line); border-radius:3px; white-space:nowrap; vertical-align:1px; }
   table.list .band { font-size:10px; line-height:15px; }
@@ -391,8 +415,9 @@
     table.list .tit { flex:1 0 100%; order:-1; overflow:visible; }
     table.list .tit a { display:inline; max-width:none; white-space:normal; overflow:visible; font-size:15px; font-weight:500; line-height:1.5; }
     table.list .tit .cmt { font-size:13px; }
-    table.list .who, table.list .date, table.list .views { font-size:12px; color:var(--sub); text-align:left; width:auto; }
+    table.list .who, table.list .date, table.list .views, table.list .likes { font-size:12px; color:var(--sub); text-align:left; width:auto; }
     table.list .views::before { content:"조회 "; }
+    table.list .likes::before { content:"좋아요 "; }
     table.list tr.notice { background:var(--accent-soft); }
     table.list tr.notice td { background:transparent; }
     table.list tr.notice .tit a::before { content:"공지"; display:inline-block; font-size:11px; font-weight:700; color:var(--on-accent); background:var(--surface); border:1px solid var(--on-accent); padding:0 6px; border-radius:4px; margin-right:6px; vertical-align:1px; }
@@ -412,11 +437,11 @@
   }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"write":true};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":false,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=018ea5b59e"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=018ea5b59e" defer></script>
-    <script src="https://picklehubkorea.com/assets/editor.js?v=018ea5b59e" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=8ee7c01c4f"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=8ee7c01c4f" defer></script>
+    <script src="https://picklehubkorea.com/assets/editor.js?v=8ee7c01c4f" defer></script>
   </head>
   <body>
     <div class="top">

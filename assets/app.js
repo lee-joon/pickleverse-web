@@ -108,6 +108,18 @@
     return label ? '<span class="band">DUPR ' + esc(label) + '</span>' : '';
   }
 
+  /* 반응 아이콘 — 글은 패들, 댓글은 엄지척/엄지다운. 모양만 보고도 무엇에 대한
+     반응인지 구분된다(오너 지시 2026-09-17). 카운트는 서버가 준 값만 그린다. */
+  var PADDLE = function (filled) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="ico-paddle">' +
+      '<path d="M12 2.4c4.2 0 7.3 3.1 7.3 7.1 0 3.5-2.4 6.4-5.6 7v3.3a1.7 1.7 0 0 1-3.4 0v-3.3c-3.2-.6-5.6-3.5-5.6-7 0-4 3.1-7.1 7.3-7.1z" fill="' +
+      (filled ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="' + (filled ? 0 : 1.7) + '" stroke-linejoin="round"/></svg>';
+  };
+  var THUMB_UP = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="ico-thumb">' +
+    '<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.3a2 2 0 0 0 2-1.7l1.4-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>';
+  var THUMB_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="ico-thumb">' +
+    '<path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.7a2 2 0 0 0-2 1.7l-1.4 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>';
+
   function authorLabel(c) {
     if (c.author_kind === 'withdrawn' || c.author_seq == null) return { label: '탈퇴한 회원', cls: 'gone' };
     if (c.author_kind === 'admin') return { label: '관리자', cls: 'op' };
@@ -122,6 +134,7 @@
     ['User already registered', '이미 가입된 이메일입니다. 로그인해 주세요.'],
     ['Password should be at least', '비밀번호는 6자 이상이어야 합니다.'],
     ['Unable to validate email', '이메일 형식이 올바르지 않습니다.'],
+    ['For security purposes', '조금 전에 보냈습니다. 1분쯤 뒤에 다시 시도해 주세요.'],
     ['rate limit', '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.'],
     ['Rate limited', '잠시 후 다시 시도해 주세요. (시간당 작성 한도)'],
     ['Blocked term', '사용할 수 없는 표현이 포함되어 있습니다.'],
@@ -230,6 +243,7 @@
         '<p class="pv-err" hidden></p>' +
         '<button type="submit" class="btn primary"></button>' +
         '<button type="button" class="lnk" data-forgot>비밀번호를 잊으셨나요?</button>' +
+        '<button type="button" class="lnk" data-resend hidden>확인 메일 다시 보내기</button>' +
         '<p class="pv-note" data-signup-note hidden>가입하면 확인 메일이 갑니다. 메일의 링크를 누른 뒤 로그인해 주세요. 가입 후 이름·약관 동의를 한 번 더 확인합니다.</p>' +
       '</form>'
     );
@@ -240,6 +254,7 @@
       submit.textContent = m === 'login' ? '로그인' : '이메일로 가입';
       $('[data-signup-note]', form).hidden = m !== 'signup';
       $('[data-forgot]', form).hidden = m !== 'login';
+      $('[data-resend]', form).hidden = true;
       $('input[name=password]', form).autocomplete = m === 'login' ? 'current-password' : 'new-password';
       setErr(d, '');
     }
@@ -259,6 +274,18 @@
         setErr(d, r.error ? msg(r.error) : '비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 눌러 주세요.');
       });
     });
+
+    /* 확인 메일 재발송 — 메일이 유실되면 가입도 로그인도 안 되는 상태로 갇힌다
+       (이미 가입된 이메일이라 재가입 불가, 미확인이라 로그인 불가). 빠져나올 문이 필요하다. */
+    function resendConfirm(email) {
+      if (!email) { setErr(d, '이메일을 먼저 입력해 주세요.'); return; }
+      sb.auth.resend({ type: 'signup', email: email, options: { emailRedirectTo: location.href.split('#')[0] } })
+        .then(function (r) {
+          setErr(d, r.error ? msg(r.error)
+            : '확인 메일을 다시 보냈습니다. 스팸함·격리함도 확인해 주세요.');
+        });
+    }
+    $('[data-resend]', form).addEventListener('click', function () { resendConfirm(form.email.value.trim()); });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault(); setErr(d, ''); busy(form, true);
       var email = form.email.value.trim(), password = form.password.value;
@@ -267,9 +294,21 @@
         : sb.auth.signUp({ email: email, password: password, options: { emailRedirectTo: location.href.split('#')[0] } });
       p.then(function (r) {
         busy(form, false);
-        if (r.error) { setErr(d, msg(r.error)); return; }
+        if (r.error) {
+          setErr(d, msg(r.error));
+          // 코드가 없는 구버전 응답도 있어 문구로도 판정한다.
+          var unconfirmed = (r.error.code === 'email_not_confirmed')
+            || String(r.error.message || '').toLowerCase().indexOf('email not confirmed') >= 0;
+          if (unconfirmed) $('[data-resend]', form).hidden = false;
+          return;
+        }
         if (cur === 'signup' && !(r.data && r.data.session)) {
-          form.innerHTML = '<p class="pv-note">확인 메일을 보냈습니다. <b>' + esc(email) + '</b> 의 메일함에서 링크를 누른 뒤 로그인해 주세요.</p>';
+          form.innerHTML =
+            '<p class="pv-note">확인 메일을 보냈습니다. <b>' + esc(email) + '</b> 의 메일함에서 링크를 누른 뒤 로그인해 주세요. '
+            + '회사 메일은 스팸함이나 격리함으로 갈 수 있습니다.</p>' +
+            '<p class="pv-err" hidden></p>' +
+            '<button type="button" class="lnk" data-resend-sent>메일이 안 오면 다시 보내기</button>';
+          $('[data-resend-sent]', form).addEventListener('click', function () { resendConfirm(email); });
           return;
         }
         d.close();
@@ -421,6 +460,7 @@
               '<td class="tit"><a href="' + esc(viewUrl + '?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
               '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + skillBadge(p) + '</td><td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
               '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
+              '<td class="likes">' + (typeof p.like_count === 'number' ? p.like_count : 0) + '</td>' +
             '</tr>'));
         });
         var anchor = tbody.querySelector('tr:not(.notice)');
@@ -456,7 +496,17 @@
           if (c.can_mute && c.hidden) acts.push('<button class="lnk" data-unmute="' + esc(c.id) + '">숨김 해제</button>');
           if (!c.is_mine) acts.push('<button class="lnk" data-report-comment="' + esc(c.id) + '">신고</button>');
         }
-        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + badge + mine + '</span>' + txt +
+        // 숨긴 댓글에는 반응을 붙이지 않는다 — 툼스톤에 투표할 이유가 없다.
+        var react = c.hidden ? '' :
+          '<span class="react">' +
+            '<button class="rbtn' + (c.my_reaction === 1 ? ' on' : '') + '" data-react-up="' + esc(c.id) + '"' +
+              ' aria-pressed="' + (c.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
+              THUMB_UP + '<b>' + (c.like_count || 0) + '</b></button>' +
+            '<button class="rbtn down' + (c.my_reaction === -1 ? ' on' : '') + '" data-react-down="' + esc(c.id) + '"' +
+              ' aria-pressed="' + (c.my_reaction === -1 ? 'true' : 'false') + '" title="싫어요">' +
+              THUMB_DOWN + '<b>' + (c.dislike_count || 0) + '</b></button>' +
+          '</span>';
+        return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + badge + mine + '</span>' + txt + react +
           '<span class="when">' + esc(fmtFull(c.created_at)) + (acts.length ? '<span class="acts">' + acts.join('') + '</span>' : '') + '</span></li>';
       }).join('') + '</ul>';
     }
@@ -504,6 +554,9 @@
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
+      '<div class="likes"><button class="likebtn' + (p.my_reaction === 1 ? ' on' : '') + '" data-like-post' +
+        ' aria-pressed="' + (p.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
+        PADDLE(p.my_reaction === 1) + '<b id="pv-likes">' + (p.like_count || 0) + '</b></button></div>' +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';
   }
   /* 조회수는 DOM 이 아니라 여기에 들고 최대값만 남긴다.
@@ -573,8 +626,24 @@
 
   /* ── 이벤트 위임 ───────────────────────────────────────────────────────── */
   document.addEventListener('click', function (ev) {
-    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post],[data-pin]'); if (!t) return;
-    if (t.dataset.pin) {
+    var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post],[data-pin],[data-like-post],[data-react-up],[data-react-down]'); if (!t) return;
+    if (t.hasAttribute('data-like-post')) {
+      if (!session) { openAuth('login'); return; }
+      t.disabled = true;
+      sb.rpc('hub_react_community_post', { p_post_id: postId, p_on: t.getAttribute('aria-pressed') !== 'true' })
+        .then(function (r) { if (r.error) alert(msg(r.error)); loadPost(); });
+    }
+    else if (t.dataset.reactUp || t.dataset.reactDown) {
+      if (!session) { openAuth('login'); return; }
+      var up = !!t.dataset.reactUp;
+      var already = t.getAttribute('aria-pressed') === 'true';
+      t.disabled = true;
+      sb.rpc('hub_react_community_comment', {
+        p_comment_id: up ? t.dataset.reactUp : t.dataset.reactDown,
+        p_value: already ? 0 : (up ? 1 : -1),
+      }).then(function (r) { if (r.error) alert(msg(r.error)); loadPost(); });
+    }
+    else if (t.dataset.pin) {
       t.disabled = true;
       sb.rpc('hub_pin_community_post', { p_post_id: postId, p_pinned: t.dataset.pin === '1' })
         .then(function (r) { if (r.error) { alert(msg(r.error)); t.disabled = false; } else loadPost(); });
