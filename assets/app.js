@@ -586,7 +586,7 @@
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
-      '<div class="likes"><button class="likebtn' + (p.my_reaction === 1 ? ' on' : '') + '" data-like-post' +
+      '<div class="likerow"><button class="likebtn' + (p.my_reaction === 1 ? ' on' : '') + '" data-like-post' +
         ' aria-pressed="' + (p.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
         PADDLE(p.my_reaction === 1) + '<b id="pv-likes">' + (p.like_count || 0) + '</b></button></div>' +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';

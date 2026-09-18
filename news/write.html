@@ -231,8 +231,11 @@
   table.list .likes { width:56px; text-align:center; color:var(--sub); font-size:12px; }
   .ico-paddle, .ico-thumb { width:1em; height:1em; vertical-align:-2px; }
   .ico-thumb { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
-  /* 글 좋아요 — 패들. 본문과 목록 버튼 사이에 홀로 둔다(가장 큰 반응 지점). */
-  .likes { display:flex; justify-content:center; padding:var(--s4) 0 var(--s2); }
+  /* 글 좋아요 — 패들. 본문과 목록 버튼 사이에 홀로 둔다(가장 큰 반응 지점).
+     클래스 이름이 표의 '좋아요' 열(.likes)과 겹치면 안 된다 — 범위 없는 display:flex
+     가 <th>/<td> 에도 먹어 셀이 테이블 셀이 아니게 되고, table-layout:fixed 가 열
+     너비를 못 잡아 머리글 정렬이 무너진다(2026-09-18 오너 보고). */
+  .likerow { display:flex; justify-content:center; padding:var(--s4) 0 var(--s2); }
   .likebtn { display:inline-flex; align-items:center; gap:7px; min-height:40px; padding:8px 18px; cursor:pointer;
              border:1px solid var(--line-strong); border-radius:999px; background:var(--surface); color:var(--sub);
              font:inherit; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
@@ -442,9 +445,9 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":false,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=cb8df4f373"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=cb8df4f373" defer></script>
-    <script src="https://picklehubkorea.com/assets/editor.js?v=cb8df4f373" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=b77affe634"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=b77affe634" defer></script>
+    <script src="https://picklehubkorea.com/assets/editor.js?v=b77affe634" defer></script>
   </head>
   <body>
     <div class="top">
