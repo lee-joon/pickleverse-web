@@ -55,6 +55,11 @@
       var label = $('#ed-band-label');
       if (label) label.textContent = '(' + BAND_LABELS[band] + ')';
       bandRow.hidden = false;
+      // 내 정보에서 정한 기본값(마이그 441)으로 시작한다. 여기서 바꿔도 이 글에만
+      // 적용되고 기본값은 그대로다 — 기본값은 내 정보에서만 바뀐다.
+      if (bandBox && App.communityPrefs) {
+        App.communityPrefs().then(function (on) { bandBox.checked = !!on; }).catch(function () {});
+      }
     }).catch(function () {});
   }
 

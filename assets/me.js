@@ -29,6 +29,8 @@
      (docs/dupr-api.md §1) 우리 페이지가 남의 message 를 받아 처리할 수 있는 상태가 된다 —
      서버가 토큰 소유를 재검증하긴 하지만, 출처를 먼저 막는 게 순서다. dupr.gg 는
      mydupr.com 으로 302 되므로 최종 출처까지 함께 허용한다(실측). */
+  /* 실력대 라벨 — 서버 hub_community_skill_band 의 4구간과 같다(app.js SKILL_BANDS 와 동일 문구). */
+  var BAND_LABELS = { lt25: '2.5 미만', '25_30': '2.5~3.0', '30_35': '3.0~3.5', gte35: '3.5 이상' };
   var DUPR_ORIGINS = [
     'https://dupr.gg', 'https://www.dupr.gg', 'https://mydupr.com', 'https://www.mydupr.com',
     'https://dashboard.dupr.com', 'https://uat.dupr.gg', 'https://uat.mydupr.com',
@@ -160,7 +162,7 @@
     }
 
     /* 현재 값 — 폼이 수집하지 않는 필드까지 전부 들고 있어야 저장이 지우지 않는다. */
-    var row = null, prof = null, dupr = { linked: false };
+    var row = null, prof = null, dupr = { linked: false }, bandPref = false, myBand = null;
 
 
     function load() {
@@ -174,11 +176,15 @@
         ).eq('id', uid).maybeSingle(),
         sb.from('user_profiles').select('dupr_rating').eq('user_id', uid).maybeSingle(),
         sb.rpc('dupr_my_link_status'),
+        App.communityPrefs(),
+        App.skillBand(),
       ]).then(function (res) {
         if (res[0].error) { bodyEl.innerHTML = '<p class="me-loading">회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>'; return; }
         row = res[0].data || {};
         prof = (res[1] && res[1].data) || {};
         dupr = (res[2] && !res[2].error && res[2].data) || { linked: false };
+        bandPref = res[3] === true;
+        myBand = res[4] || null;
         render();
       });
     }
@@ -257,6 +263,21 @@
                     ? '<div class="me-link"><button type="button" class="btn" data-dupr="link">DUPR 연동</button>' +
                       '<small>DUPR 로그인 창이 열립니다. 계정이 없으면 DUPR 앱·웹에서 먼저 가입해 주세요.</small></div>'
                     : '<div class="me-link"><small>연동은 앱에서 할 수 있습니다.</small></div>')) +
+            '</dd></div>' +
+            // 커뮤니티에서 내 익명 옆에 무엇이 보일지(마이그 441). 스위치는 연동된
+            // 사람에게만 — 붙을 배지가 없는데 스위치를 주면 켜도 아무 일이 없다.
+            '<div><dt>커뮤니티 표시</dt><dd>' +
+              esc(!dupr.linked
+                ? 'DUPR 미설정'
+                : (bandPref && myBand && BAND_LABELS[myBand]
+                    ? 'DUPR 연동 · ' + BAND_LABELS[myBand]
+                    : 'DUPR 연동')) +
+              (dupr.linked
+                ? '<div class="me-link"><label class="me-check">' +
+                    '<input type="checkbox" id="me-band"' + (bandPref ? ' checked' : '') + ' /> ' +
+                    '익명 옆에 실력대 표시</label></div>'
+                : '') +
+              '<small>지금부터 쓰는 글에 적용됩니다. 이미 올린 글은 그대로 남습니다.</small>' +
             '</dd></div>' +
           '</dl>' +
         '</section>' +
@@ -385,6 +406,23 @@
           b.hidden = !panel.hidden;
         });
       });
+
+      var bandBox = bodyEl.querySelector('#me-band');
+      if (bandBox) {
+        bandBox.addEventListener('change', function () {
+          var next = bandBox.checked;
+          bandBox.disabled = true;
+          App.setCommunityPrefs(next).then(function (on) {
+            bandPref = on;
+            render();
+          }).catch(function (e) {
+            // 실패하면 화면을 되돌린다 — 켜진 것처럼 보이는데 서버는 꺼져 있는 게 제일 나쁘다.
+            bandBox.checked = !next;
+            bandBox.disabled = false;
+            alert(App.msg(e));
+          });
+        });
+      }
 
       bodyEl.querySelectorAll('[data-dupr]').forEach(function (b) {
         b.addEventListener('click', function () {

@@ -38,6 +38,17 @@
     msg: function (e) { return msg(e); },
     /** 내 실력대 구간(없으면 null) — 편집기가 체크박스를 드러낼지 판단한다. */
     skillBand: function () { return mySkillBand(); },
+    /** 커뮤니티 표시 기본값(마이그 441). 못 읽으면 꺼진 쪽으로 — 의도치 않은 노출보다 낫다. */
+    communityPrefs: function () {
+      if (!session) return Promise.resolve(false);
+      return sb.rpc('hub_get_community_prefs')
+        .then(function (r) { return !!(r && r.data && r.data.show_skill_band); })
+        .catch(function () { return false; });
+    },
+    setCommunityPrefs: function (on) {
+      return sb.rpc('hub_set_community_prefs', { p_show_skill_band: !!on })
+        .then(function (r) { if (r && r.error) throw r.error; return !!(r.data && r.data.show_skill_band); });
+    },
   };
   window.PVApp = App;
 

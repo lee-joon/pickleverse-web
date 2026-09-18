@@ -295,6 +295,9 @@
   .me-more:hover { color:var(--ink); }
   .me-link .btn { min-height:32px; padding:4px 10px; font-size:12px; }
   .me-link small { flex:1 0 100%; color:var(--sub); font-size:11px; line-height:1.55; word-break:keep-all; }
+  /* 내 정보의 켜고 끄기 한 줄 — 터치 표적을 라벨 전체로 넓힌다(체크박스만 누르게 두면 모바일에서 놓친다). */
+  .me-check { display:flex; align-items:center; gap:var(--s2); font-size:12px; color:var(--ink); cursor:pointer; min-height:32px; }
+  .me-check input { width:16px; height:16px; accent-color:var(--brand); flex:0 0 auto; }
   /* DUPR SSO — 규정상 임베드 iframe 이 유일한 연결 경로라 모달 안에 그대로 띄운다. */
   dialog.pv.pv-wide { width:min(520px, calc(100vw - 24px)); }
   .me-sso { border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--bg); margin:var(--s3) 0; }
@@ -439,8 +442,8 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=8ee7c01c4f"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=8ee7c01c4f" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=782a302f32"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=782a302f32" defer></script>
     
   </head>
   <body>
