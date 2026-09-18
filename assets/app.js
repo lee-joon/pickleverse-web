@@ -329,20 +329,39 @@
 
   /* ── 프로필 완성 게이트 (앱의 CompleteProfile 과 같은 RPC) ─────────────── */
   var profileOk = null; // null=미확인, true/false
+  /* 진행 중인 조회. 캐시는 **응답이 온 뒤에야** 채워지므로, 이게 없으면 부트·
+     SIGNED_IN·편집기 게이트가 동시에 물어보고 **각자 창을 띄운다**(회원 정보
+     확인이 두 개 겹쳐 뜨던 원인, 2026-09-18). 먼저 뜬 조회에 합류시킨다. */
+  var profileCheck = null;
   function checkProfile() {
     if (!session) return Promise.resolve(false);
     if (profileOk !== null) return Promise.resolve(profileOk);
-    return sb.from('users').select('nationality_type,platform_terms_accepted_at,privacy_policy_accepted_at,real_name')
+    if (profileCheck) return profileCheck;
+    // uid 는 아래 "계정이 바뀌었나" 비교용이다. 질의 자체는 session.user.id 를
+    // 그대로 써서 "본인 행 고정" 가드(communityAnonymity.test)의 모양을 유지한다.
+    var uid = session.user.id;
+    profileCheck = sb.from('users').select('nationality_type,platform_terms_accepted_at,privacy_policy_accepted_at,real_name')
       .eq('id', session.user.id).maybeSingle()
       .then(function (r) {
+        profileCheck = null;
+        // 조회 중에 계정이 바뀌었으면 남의 결과다 — 캐시에 넣지 않는다.
+        if (!session || session.user.id !== uid) return false;
         var u = r.data;
         me = u || null;
         renderAccount();
         profileOk = !!(u && u.real_name && u.nationality_type && u.platform_terms_accepted_at && u.privacy_policy_accepted_at);
         return profileOk;
-      });
+      }, function (e) { profileCheck = null; throw e; });
+    return profileCheck;
   }
+  /* 열려 있는 회원정보 창과 그 창이 끝나면 부를 콜백들. 창은 하나만 뜬다 —
+     ①로 대부분 막히지만, 서로 모르는 두 경로가 각각 열려 할 수 있으므로 여기서도 막는다. */
+  var profileDialog = null, profileDone = [];
   function openProfile(onDone) {
+    if (profileDialog) {
+      if (onDone) profileDone.push(onDone);
+      return profileDialog;
+    }
     var d = dialog(
       '<button class="x" data-x aria-label="닫기">×</button>' +
       '<h3>회원 정보 확인</h3><p class="pv-note">커뮤니티 글은 익명으로 올라가지만, 계정에는 앱과 같은 기본 정보가 필요합니다. 이름은 다른 이용자에게 표시되지 않습니다.</p>' +
@@ -350,18 +369,18 @@
         '<fieldset class="pv-radio"><legend>내국인 / 외국인</legend>' +
           '<label><input type="radio" name="nat" value="domestic" checked /> 내국인</label>' +
           '<label><input type="radio" name="nat" value="foreign" /> 외국인</label></fieldset>' +
-        '<label>이름<input name="name" type="text" autocomplete="name" maxlength="40" placeholder="한글 본명" required /></label>' +
+        '<label>이름<input name="name" type="text" autocomplete="name" maxlength="40" required /></label>' +
         '<label class="pv-check"><input type="checkbox" name="terms" required /> <a href="' + esc(PV.legal) + '/terms.html" target="_blank" rel="noopener">이용약관</a>에 동의합니다</label>' +
         '<label class="pv-check"><input type="checkbox" name="privacy" required /> <a href="' + esc(PV.legal) + '/privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a>에 동의합니다</label>' +
         '<p class="pv-err" hidden></p>' +
         '<button type="submit" class="btn primary">완료</button>' +
       '</form>'
     );
+    profileDialog = d;
+    profileDone = onDone ? [onDone] : [];
+    // 사용자가 X 로 닫아도 자물쇠를 풀어 준다 — 안 풀면 다시는 못 연다.
+    d.addEventListener('close', function () { profileDialog = null; });
     var form = $('#pv-profile', d);
-    form.addEventListener('change', function () {
-      var nat = form.nat.value;
-      form.name.placeholder = nat === 'domestic' ? '한글 본명' : 'Name in English';
-    });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault(); setErr(d, ''); busy(form, true);
       var nat = form.nat.value;
@@ -381,7 +400,9 @@
       }).then(function (r) {
         busy(form, false);
         if (r.error) { setErr(d, msg(r.error)); return; }
-        profileOk = true; me = { real_name: form.name.value.trim() }; renderAccount(); d.close(); if (onDone) onDone();
+        profileOk = true; me = { real_name: form.name.value.trim() }; renderAccount(); d.close();
+        var waiting = profileDone; profileDone = [];
+        waiting.forEach(function (fn) { try { fn(); } catch (err) {} });
       });
     });
   }
@@ -706,7 +727,9 @@
 
   /* ── 부트 ──────────────────────────────────────────────────────────────── */
   sb.auth.onAuthStateChange(function (event, s) {
-    session = s || null; profileOk = null; if (!session) me = null;
+    // 계정이 바뀌면 진행 중인 조회도 버린다 — 남기면 이전 계정의 결과가
+    // 새 호출자에게 돌아가 창이 또 뜬다.
+    session = s || null; profileOk = null; profileCheck = null; if (!session) me = null;
     renderAccount();
     authListeners.forEach(function (cb) { try { cb(event); } catch (e) {} });
     if (event === 'PASSWORD_RECOVERY') openNewPassword();

@@ -109,7 +109,6 @@
 
     /* 이 화면에서만 나오는 서버 문구. */
     var ME_ERR = [
-      ['already linked', '그 수단은 이미 다른 계정에 붙어 있습니다. 그 수단으로 로그인하면 그 계정으로 들어갑니다.'],
       ['already exists', '그 수단은 이미 다른 계정에 붙어 있습니다. 그 수단으로 로그인하면 그 계정으로 들어갑니다.'],
       ['manual linking', '로그인 수단 연결이 꺼져 있습니다. 운영자에게 알려 주세요.'],
       ['dupr_account_already_linked', '그 DUPR 계정은 이미 다른 회원에 연결돼 있습니다.'],
@@ -130,14 +129,6 @@
       var list = (u.app_metadata && u.app_metadata.providers) || [];
       if (!list.length && u.app_metadata && u.app_metadata.provider) list = [u.app_metadata.provider];
       return list;
-    }
-
-    /* 이 계정에 아직 안 붙은 수단. 애플 '이메일 가리기'는 릴레이 주소를 주기 때문에
-       이메일이 같을 수가 없어 자동 병합이 구조적으로 불가능하다(prod 26건 중 18건).
-       그래서 로그인한 상태에서 직접 붙이는 이 경로가 유일한 해법이다. */
-    function missingProviders() {
-      var have = providerList();
-      return (PV.oauth || []).filter(function (k) { return PROVIDERS[k] && have.indexOf(k) < 0; });
     }
 
     /* 팝업이 끝났다고 알려 오면 카드를 다시 읽는다. 출처는 우리 사이트로 고정한다. */
@@ -199,7 +190,6 @@
       var email = row.email || (App.session.user && App.session.user.email) || '';
       var provs = providerList();
       var hasEmailLogin = provs.indexOf('email') >= 0;
-      var miss = missingProviders();
       var nat = row.nationality_type || 'domestic';
 
       bodyEl.innerHTML =
@@ -207,17 +197,8 @@
           '<h2>계정</h2>' +
           '<dl class="me-facts">' +
             '<div><dt>이메일</dt><dd>' + esc(email || '—') + '</dd></div>' +
+            // 로그인 수단은 보여만 준다 — 수단을 붙이는 경로는 두지 않는다(오너 지시 2026-09-18).
             '<div><dt>로그인 수단</dt><dd>' + esc(provs.map(function (p) { return PROVIDERS[p] || p; }).join(', ') || '—') +
-              // 평소엔 링크 한 줄로 접어 둔다 — 대부분은 쓸 일이 없고, 계정 카드가 버튼으로 무거워진다.
-              (miss.length
-                ? '<button type="button" class="lnk me-more" data-more="link">다른 수단 연결</button>' +
-                  '<div class="me-link" data-more-panel="link" hidden>' +
-                    miss.map(function (k) {
-                      return '<button type="button" class="btn" data-link="' + k + '">' + esc(PROVIDERS[k]) + ' 연결</button>';
-                    }).join('') +
-                    '<small>수단만 바꿔 로그인하면 다른 계정이 됩니다. 여기서 붙여 두면 어느 수단으로 들어와도 이 계정입니다.</small>' +
-                  '</div>'
-                : '') +
             '</dd></div>' +
             '<div><dt>가입일</dt><dd>' + esc(fmtDay(row.created_at)) + '</dd></div>' +
           '</dl>' +
@@ -434,16 +415,6 @@
               'width=520,height=780,noopener=no,noreferrer=no');
           } catch (e) { w = null; }
           if (w) { try { w.focus(); } catch (e) {} } else openDuprSso();
-        });
-      });
-
-      bodyEl.querySelectorAll('[data-link]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          b.disabled = true;
-          // 지금 로그인한 계정에 이 수단을 붙인다(이미 다른 계정에 붙어 있으면 서버가 거절).
-          sb.auth.linkIdentity({ provider: b.dataset.link, options: { redirectTo: PV.site + '/me.html' } })
-            .then(function (r) { if (r && r.error) { alert(emsg(r.error)); b.disabled = false; } })
-            .catch(function (e) { alert(emsg(e)); b.disabled = false; });
         });
       });
 
