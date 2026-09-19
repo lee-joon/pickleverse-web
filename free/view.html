@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#191D1B" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#181A1C" media="(prefers-color-scheme: dark)" />
     <title>자유게시판 — 피클허브 커뮤니티</title>
     <meta name="description" content="피클볼 이야기를 익명으로 나누는 곳입니다. 로그인하면 웹에서도 바로 쓸 수 있습니다." />
     <link rel="canonical" href="https://picklehubkorea.com/free/" />
@@ -17,14 +17,11 @@
     <meta property="og:image" content="https://picklehubkorea.com/assets/logo-256.png" />
     <meta name="robots" content="noindex" />
     
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" />
     <style>
   :root {
-    --brand:#00361A; --brand-soft:#CFEAD6; --accent:#FBE366; --accent-soft:#FDF4C4; --on-accent:#736400;
-    --bg:#FFFFFF; --surface:#FFFFFF; --ink:#19231D; --sub:#626C66; --line:#DCE3DE; --line-soft:#EBEFEC;
-    --row-hover:#F5F8F6; --head:#F6F8F7;
+    --brand:#145B37; --brand-soft:#EDF5EF; --accent:#FBE366; --accent-soft:#FFF8DF; --on-accent:#796017;
+    --bg:#FFFFFF; --surface:#FFFFFF; --ink:#232629; --sub:#646A70; --line:#DDE0E3; --line-soft:#ECEEF0;
+    --row-hover:#F8F9FA; --head:#F6F7F8;
     /* 컨트롤 테두리는 표 헤어라인과 용도가 다르다 — 3:1 을 넘겨야 입력창·2차 버튼의 경계가 보인다. */
     --line-strong:#8B968D; --on-brand:#FFFFFF; --danger:#B4372E;
     /* 4px 간격 스케일. 밀도는 표 '안'에서 지키고 여백은 표 '바깥'에서 낸다. */
@@ -35,8 +32,8 @@
   @media (prefers-color-scheme: dark) {
     :root {
       --brand:#94C4A4; --brand-soft:#203B2A; --accent:#E3D28A; --accent-soft:#302D20; --on-accent:#F1E4B3;
-      --bg:#141716; --surface:#191D1B; --ink:#F0F4F1; --sub:#ACB7AF; --line:#343D37; --line-soft:#2A312D;
-      --row-hover:#202923; --head:#1C221E;
+      --bg:#181A1C; --surface:#181A1C; --ink:#ECEEF0; --sub:#ABB0B6; --line:#393D42; --line-soft:#2D3136;
+      --row-hover:#25292E; --head:#21252A;
       --line-strong:#718276; --on-brand:#121513; --danger:#FF8278;
     }
   }
@@ -45,11 +42,12 @@
   html { -webkit-text-size-adjust:100%; color-scheme:light; }
   @media (prefers-color-scheme: dark) { html { color-scheme:dark; } }
   body { margin:0; background:var(--bg); color:var(--ink);
-         font:14px/1.65 "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+         font:14px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+         letter-spacing:0;
          font-variant-numeric:tabular-nums;
          /* 빈 게시판에서 푸터가 화면 중간에 뜨지 않게 */
          min-height:100dvh; display:flex; flex-direction:column; }
-  main.wrap { flex:1 0 auto; padding-top:28px; }
+  .community-main { min-width:0; padding:30px 0 48px; }
   a { color:inherit; text-decoration:none; }
   a:hover { text-decoration:underline; }
   :where(a,button,input,select,textarea,summary,[contenteditable]):focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
@@ -57,34 +55,37 @@
   .skip-link { position:fixed; left:16px; top:-80px; z-index:100; background:var(--surface); color:var(--ink); padding:12px; }
   .skip-link:focus { top:8px; }
   @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
-  .wrap { width:100%; max-width:1120px; margin:0 auto; padding:0 var(--s4); }
+  .wrap { width:100%; max-width:1240px; margin:0 auto; padding:0 var(--s4); }
   @media (min-width:1080px) { .wrap { padding:0 var(--s6); } }
 
   /* ── 브랜드 헤더 ── */
   .top { background:var(--surface); color:var(--ink); border-bottom:1px solid var(--line-soft); position:relative; z-index:10; }
-  .top .wrap { min-height:72px; display:flex; align-items:center; gap:16px; position:relative; }
-  .top img { width:32px; height:32px; border-radius:8px; display:block; }
-  .top .brand { font-weight:700; font-size:20px; letter-spacing:0; white-space:nowrap; }
-  .top .brand small { font-weight:400; color:var(--sub); border-left:1px solid var(--line); padding-left:16px; margin-left:16px; font-size:13px; letter-spacing:0; }
+  .top .wrap { min-height:76px; display:flex; align-items:center; gap:16px; position:relative; }
+  .top img { width:36px; height:36px; border-radius:8px; display:block; }
+  .top .brand { font-weight:800; font-size:24px; letter-spacing:0; white-space:nowrap; }
+  .top .brand small { font-weight:500; color:var(--sub); margin-left:14px; font-size:13px; letter-spacing:0; }
   .top .wrap > * { position:relative; z-index:1; }
   .top .cta { margin-left:auto; border:1px solid var(--line); color:var(--ink); font-weight:700; font-size:13px;
               padding:8px 14px; border-radius:6px; white-space:nowrap; min-height:44px; display:inline-flex; gap:8px; align-items:center; }
   .top .cta:hover { text-decoration:none; background:var(--head); border-color:var(--line-strong); }
   @media (max-width:640px) { .top .cta { min-height:44px; } }
 
-  /* ── 게시판 헤더 + 탭 — 밑줄 하나로 잇는다(폴더 탭·액센트 바 없음) ── */
-  .gall { background:var(--surface); border-bottom:1px solid var(--line); }
-  .gall .wrap { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:var(--s3); padding-top:32px; }
-  .gall h1 { margin:0 0 24px; font-size:30px; font-weight:700; letter-spacing:0; line-height:1.4; }
-  .gall .name { flex:1 1 auto; min-width:0; }
-  .tabs { display:flex; gap:24px; flex:none; }
-  .tabs a { display:flex; align-items:center; min-height:56px; padding:8px 0 14px; font-weight:500; font-size:14px; color:var(--sub); border-bottom:2px solid transparent; margin-bottom:-1px; }
-  .tabs a.on { color:var(--brand); font-weight:700; border-bottom-color:var(--brand); }
-  .tabs a:hover { text-decoration:none; color:var(--ink); }
+  /* One navigation tree: a quiet rail on desktop, board tabs on mobile. */
+  .community-layout { flex:1 0 auto; display:grid; grid-template-columns:172px minmax(0,1fr); gap:32px; }
+  .community-rail { border-right:1px solid var(--line-soft); padding:32px 20px 32px 0; }
+  .rail-label { display:block; margin:0 12px 12px; color:var(--sub); font-size:12px; font-weight:500; }
+  .tabs { display:flex; flex-direction:column; gap:4px; }
+  .tabs a { display:flex; align-items:center; min-height:44px; padding:10px 12px; font-weight:500; font-size:14px; color:var(--sub); border-radius:4px; border-left:3px solid transparent; }
+  .tabs a.on { color:var(--brand); background:var(--brand-soft); border-left-color:var(--brand); font-weight:700; }
+  .tabs a:hover { text-decoration:none; color:var(--ink); background:var(--head); }
+  .rail-account { display:flex; align-items:center; min-height:44px; margin-top:20px; padding:10px 15px; font-size:13px; color:var(--sub); }
+  .rail-account[aria-current] { color:var(--brand); font-weight:700; }
+  .board-heading { margin-bottom:24px; }
+  .board-heading h1 { margin:0; font-size:24px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
 
   /* ── 목록 툴바 ── */
   /* 카운트가 숨겨져도(글 0건) 글쓰기 버튼은 오른쪽에 남는다. */
-  .toolbar { display:grid; grid-template-columns:auto auto minmax(180px, 1fr) auto; align-items:center; gap:16px; padding:0 0 20px; font-size:12px; color:var(--sub); }
+  .toolbar { display:grid; grid-template-columns:auto auto minmax(150px, 1fr) auto; align-items:center; gap:12px; padding:0 0 14px; font-size:12px; color:var(--sub); }
   .toolbar .btn { margin-left:auto; }
   .toolbar b { color:var(--ink); font-weight:500; }
   /* 버튼 4종으로 수렴 — 1차(primary) / 2차(기본) / 파괴적(danger) / 텍스트(lnk) */
@@ -96,19 +97,19 @@
 
   /* ── 게시판 표 ── */
   table.list { width:100%; table-layout:fixed; border-collapse:collapse; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--surface); }
-  table.list th { background:var(--head); color:var(--sub); font-weight:400; font-size:12px; padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
-  table.list td { padding:16px 12px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
+  table.list th { background:var(--head); color:var(--sub); font-weight:400; font-size:12px; padding:9px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.list td { padding:13px 8px; border-bottom:1px solid var(--line-soft); vertical-align:middle; }
   table.list tr:hover td { background:var(--row-hover); }
   table.list .num, table.list .date, table.list .views { font-variant-numeric:tabular-nums; }
   /* 제목과 메타의 크기·굵기·색을 구분하고 배지는 작성자 칸 안에 둔다. */
   table.list .num { width:56px; text-align:center; color:var(--sub); font-size:12px; }
   table.list .tit { text-align:left; overflow:hidden; }
-  table.list .tit a { display:inline-block; max-width:calc(100% - 44px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; font-size:16px; font-weight:500; }
+  table.list .tit a { display:inline-block; max-width:calc(100% - 44px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; font-size:15px; font-weight:500; }
   table.list .tit .cmt { color:var(--brand); font-weight:700; font-size:12px; margin-left:5px; }
-  table.list .who { width:132px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
+  table.list .who { width:112px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list .who .band { display:table; margin:4px auto 0; }
   table.list .date { width:76px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
-  table.list .views { width:64px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
+  table.list .views { width:52px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list tr.notice td { background:var(--accent-soft); }
   table.list tr.notice .num { color:var(--on-accent); font-weight:700; }
   table.list tr.notice .tit a { font-weight:700; }
@@ -175,13 +176,15 @@
 
   /* ── 하단 앱 배너 + 푸터 ── */
   /* 배너는 면이 아니라 선으로 — 다크에서 면끼리 대비가 없어 박스도 버튼도 사라지던 자리. */
-  .promo { margin-top:40px; padding:24px 0; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:var(--s3); flex-wrap:wrap; }
-  .promo b { color:var(--brand); font-size:14px; font-weight:700; }
-  .promo p { margin:2px 0 0; color:var(--sub); font-size:12px; }
-  .promo .stores { display:flex; gap:var(--s2); }
-  footer { margin-top:var(--s8); padding:24px 0 32px; border-top:1px solid var(--line-soft); background:var(--head); color:var(--sub); font-size:12px; }
+  .promo { margin-top:32px; padding:24px 12px 0; border-top:1px solid var(--line-soft); }
+  .promo b { color:var(--ink); font-size:12px; font-weight:700; }
+  .promo .stores { display:flex; flex-direction:column; gap:0; margin-top:8px; }
+  .promo .stores a { display:inline-flex; align-items:center; gap:8px; min-height:44px; font-size:12px; color:var(--sub); }
+  .promo .ui-icon { width:14px; height:14px; }
+  .footer-stores { margin-left:auto; display:flex; gap:16px; }
+  footer { padding:20px 0; border-top:1px solid var(--line-soft); color:var(--sub); font-size:12px; }
   footer .wrap { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
-  footer a { color:var(--sub); }
+  footer a { color:var(--sub); display:inline-flex; align-items:center; min-height:44px; }
 
   /* ── 상호작용 레이어(app.js) ── */
   .top .acct { margin-left:auto; display:flex; gap:10px; align-items:center; font-size:12px; }
@@ -242,7 +245,7 @@
   .cmts .when .pv-del { text-decoration:none; }
   table.list tr.fresh td { background:var(--accent-soft); }
   /* 실력대 배지 — 이름표 옆의 작은 칩. 눈에 띄되 작성자 표기를 가리지 않는다. */
-  table.list .likes { width:64px; text-align:center; color:var(--sub); font-size:12px; }
+  table.list .likes { width:52px; text-align:center; color:var(--sub); font-size:12px; }
   .ico-paddle, .ico-thumb { width:1em; height:1em; vertical-align:-2px; }
   .ico-thumb { fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
   /* 글 좋아요 — 패들. 본문과 목록 버튼 사이에 홀로 둔다(가장 큰 반응 지점).
@@ -265,9 +268,9 @@
   .rbtn.down.on { color:var(--danger); border-color:var(--danger); }
   .rbtn:disabled { opacity:.6; cursor:default; }
   /* 최신글 | 인기글 — 판 탭 아래 한 줄. 켜진 쪽만 색으로 구분한다. */
-  .sorts { display:flex; gap:4px; padding:0; }
-  .sorts a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; min-width:64px; font-size:13px; color:var(--sub); padding:8px 12px; border:1px solid transparent; border-radius:6px; white-space:nowrap; }
-  .sorts a.on { color:var(--ink); background:var(--head); border-color:var(--line); font-weight:700; }
+  .sorts { display:flex; gap:16px; padding:0; }
+  .sorts a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; font-size:13px; color:var(--sub); padding:8px 0; border-bottom:2px solid transparent; white-space:nowrap; }
+  .sorts a.on { color:var(--ink); border-bottom-color:var(--ink); font-weight:700; }
   .sorts a:hover { text-decoration:none; color:var(--ink); }
   .band { display:inline-block; margin-left:6px; padding:1px 5px; font-size:11px; line-height:17px;
           color:var(--sub); background:var(--head); border:1px solid var(--line-soft); border-radius:3px; white-space:nowrap; vertical-align:1px; }
@@ -314,7 +317,7 @@
   .me-link small { flex:1 0 100%; color:var(--sub); font-size:11px; line-height:1.55; word-break:keep-all; }
   /* 내 정보의 켜고 끄기 한 줄 — 터치 표적을 라벨 전체로 넓힌다(체크박스만 누르게 두면 모바일에서 놓친다). */
   /* 게시판 검색 — 도구줄 가운데. 좁아지면 한 줄을 통째로 차지한다. */
-  .toolbar .search { display:flex; gap:var(--s2); min-width:0; width:100%; max-width:360px; justify-self:end; grid-column:3; margin:0; }
+  .toolbar .search { display:flex; gap:var(--s2); min-width:0; width:100%; max-width:260px; justify-self:end; grid-column:3; margin:0; }
   .toolbar > .btn { grid-column:4; min-height:44px; white-space:nowrap; }
   .list-total { white-space:nowrap; grid-column:2; }
   /* 입력 글자 16px 은 멋이 아니라 규격이다 — 그보다 작으면 iOS 가 탭할 때 화면을
@@ -322,7 +325,7 @@
      모바일 블록의 .btn{min-height:44px} 는 특정도가 낮아 여기서 직접 적어야 이긴다. */
   .toolbar .search { position:relative; }
   .toolbar .search input { flex:1 1 auto; min-width:0; min-height:44px; padding:8px 48px 8px 14px; font:inherit; font-size:16px;
-                           color:var(--ink); background:var(--head); border:1px solid var(--line-strong); border-radius:6px; }
+                           color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:4px; }
   .toolbar .search input::placeholder { color:var(--sub); }
   .toolbar .search .btn { position:absolute; right:0; top:0; min-height:44px; width:44px; padding:0; border:0; background:transparent; color:var(--sub); }
   .toolbar .search:focus-within input { border-color:var(--brand); }
@@ -430,16 +433,26 @@
     .ed-imgtools .sep { display:none; }
   }
 
+  @media (max-width:960px) {
+    .community-layout { display:block; }
+    .community-rail { border-right:0; border-bottom:1px solid var(--line); padding:0; }
+    .rail-label, .rail-account, .community-rail .promo { display:none; }
+    .tabs { flex-direction:row; gap:24px; }
+    .tabs a { padding:12px 0; border-left:0; border-bottom:2px solid transparent; border-radius:0; margin-bottom:-1px; min-height:48px; }
+    .tabs a.on { border-bottom-color:var(--brand); background:transparent; }
+    .community-main { padding-top:24px; }
+  }
   @media (max-width:640px) {
     .top .brand small { display:none; }
     .top .cta, .account-desktop { display:none; }
     .account-mobile { display:block; }
     .top .wrap > a { flex-shrink:0; }
-    .gall .wrap { flex-direction:column; align-items:stretch; gap:0; padding-top:24px; }
-    .gall h1 { font-size:26px; margin-bottom:12px; }
-    .tabs { gap:24px; }
-    .tabs a { flex:none; text-align:center; min-height:48px; display:flex; align-items:center; justify-content:center; padding:0 0 12px; }
-    main.wrap { padding-top:var(--s4); }
+    .top .brand { font-size:22px; }
+    .top img { width:32px; height:32px; }
+    .community-main { padding-top:20px; }
+    .board-heading { margin-bottom:16px; }
+    .board-heading h1 { font-size:22px; }
+    .footer-stores { margin-left:0; flex-basis:100%; }
     .toolbar { grid-template-columns:minmax(0, 1fr) auto; gap:var(--s2); padding:0 0 var(--s3); }
     .toolbar .sorts { grid-column:1; grid-row:1; }
     .toolbar .search { grid-column:1 / -1; grid-row:2; max-width:none; }
@@ -497,7 +510,7 @@
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 이동</a>
-    <div class="top">
+    <header class="top">
       <div class="wrap">
         <a href="https://picklehubkorea.com/" style="display:flex;align-items:center;gap:10px">
           <img src="https://picklehubkorea.com/assets/logo-128.png" alt="" width="28" height="28" />
@@ -506,19 +519,25 @@
         <span class="acct" id="pv-account"></span>
         <a class="cta" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">앱 다운로드 <svg class="ui-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>
       </div>
-    </div>
-    <div class="gall">
-      <div class="wrap">
-        <div class="name">
-          <h1>자유게시판</h1>
-        </div>
+    </header>
+    <div class="wrap community-layout">
+      <aside class="community-rail">
+        <span class="rail-label">커뮤니티</span>
         <nav class="tabs" aria-label="게시판">
           <a href="https://picklehubkorea.com/">뉴스 게시판</a>
           <a class="on" aria-current="page" href="https://picklehubkorea.com/free/">자유게시판</a>
         </nav>
+        <a class="rail-account" href="https://picklehubkorea.com/me.html">내 정보</a>
+        <div class="promo">
+        <b>피클허브 앱</b>
+        <div class="stores">
+          <a href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store <svg class="ui-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>
+          <a href="https://play.google.com/store/apps/details?id=com.pickleverse.hub">Google Play <svg class="ui-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></a>
+        </div>
       </div>
-    </div>
-    <main class="wrap" id="main-content">
+      </aside>
+      <main class="community-main" id="main-content">
+        <div class="board-heading"><h1>자유게시판</h1></div>
       <article class="view" id="pv-article"><div class="body"><p>불러오는 중…</p></div></article>
       <section class="cmts">
         <div class="h">댓글 <b id="pv-ccount">0</b></div>
@@ -526,23 +545,15 @@
         <div id="pv-comment-paging" aria-live="polite"></div>
         <div class="lock" id="pv-cform-slot">로그인하면 댓글을 쓸 수 있습니다.</div>
       </section>
-      <div class="promo">
-        <div>
-          <b>피클허브 앱에서 더 할 수 있는 것</b>
-          <p>오픈코트 일정 확인과 참가 신청, 클럽 찾기는 앱에서 할 수 있습니다.</p>
-        </div>
-        <div class="stores">
-          <a class="btn" href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store</a>
-          <a class="btn" href="https://play.google.com/store/apps/details?id=com.pickleverse.hub">Google Play</a>
-        </div>
-      </div>
-    </main>
+      </main>
+    </div>
     <footer>
       <div class="wrap">
-        <span>피클허브 — 전국 피클볼 오픈코트 일정을 한곳에서.</span>
+        <span>피클허브</span>
         <a href="https://lee-joon.github.io/pickleverse-legal/terms.html">이용약관</a>
         <a href="https://lee-joon.github.io/pickleverse-legal/privacy.html">개인정보 처리방침</a>
         <a href="https://lee-joon.github.io/pickleverse-legal/youth.html">청소년 보호정책</a>
+        <span class="footer-stores"><a href="https://apps.apple.com/kr/app/picklehub-korea/id6775662062">App Store</a><a href="https://play.google.com/store/apps/details?id=com.pickleverse.hub">Google Play</a></span>
       </div>
     </footer>
   </body>
