@@ -546,7 +546,10 @@
         tbody.appendChild(el('<tr class="empty"><td colspan="6">검색 결과가 없습니다.</td></tr>'));
       } else {
         var frag = document.createDocumentFragment();
-        posts.forEach(function (post, i) { frag.appendChild(el(listRowHtml(post, posts.length - i, ''))); });
+        // 번호 칸은 비운다. 게시판 번호는 전체 목록에서의 자리로 정해지는데 서버가
+        // 그 값을 주지 않는다 — 검색 결과 안의 순번을 대신 넣으면 게시판에서 37번인
+        // 글이 3번으로 보인다. 모르는 값을 지어내느니 없다고 말하는 편이 낫다.
+        posts.forEach(function (post) { frag.appendChild(el(listRowHtml(post, '–', ''))); });
         tbody.appendChild(frag);
         retimeDates(tbody);
       }
