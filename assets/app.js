@@ -451,6 +451,22 @@
   }
 
   /* ── 목록 페이지: 빌드 이후 올라온 글을 위에 얹고 댓글 수를 갱신 ────────── */
+  /* 목록 행 한 줄. 새 글 얹기와 검색 결과가 같이 쓴다 — 두 벌로 두면 열을 하나
+     더할 때 한쪽만 고쳐져 칸 수가 어긋난다(계약 테스트가 칸 수를 고정한다). */
+  function listRowHtml(p, num, extraClass) {
+    var cmt = p.comment_count > 0 ? ' <span class="cmt">[' + p.comment_count + ']</span>' : '';
+    var mine = p.is_mine ? '<span class="mine">내 글</span>' : '';
+    var viewUrl = (p.board_kind === 'news' ? '/news' : '/free') + '/view.html';
+    return '<tr data-id="' + esc(p.id) + '" class="' + esc(extraClass || '') + (p.is_mine ? ' is-mine' : '') + '">' +
+      '<td class="num">' + num + '</td>' +
+      '<td class="tit"><a href="' + esc(viewUrl + '?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
+      '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + skillBadge(p) + '</td>' +
+      '<td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
+      '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
+      '<td class="likes">' + (typeof p.like_count === 'number' ? p.like_count : 0) + '</td>' +
+      '</tr>';
+  }
+
   function refreshList() {
     var tbody = $('#pv-list'); if (!tbody || PV.page !== 1) return;
     var staticIds = {}; (PV.staticIds || []).forEach(function (id) { staticIds[id] = true; });
@@ -483,18 +499,7 @@
         // 한 줄씩 firstChild 앞에 끼우면 순서가 뒤집혀 번호가 5,6,4 처럼 나온다 —
         // 조각(fragment)에 순서대로 담아 한 번에 넣는다. 공지 행이 있으면 그 아래에.
         var frag = document.createDocumentFragment();
-        fresh.forEach(function (p, i) {
-          var cmt = p.comment_count > 0 ? ' <span class="cmt">[' + p.comment_count + ']</span>' : '';
-          var mine = p.is_mine ? '<span class="mine">내 글</span>' : '';
-          frag.appendChild(el(
-            '<tr data-id="' + esc(p.id) + '" class="fresh' + (p.is_mine ? ' is-mine' : '') + '">' +
-              '<td class="num">' + (total - i) + '</td>' +
-              '<td class="tit"><a href="' + esc(viewUrl + '?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
-              '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + skillBadge(p) + '</td><td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
-              '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
-              '<td class="likes">' + (typeof p.like_count === 'number' ? p.like_count : 0) + '</td>' +
-            '</tr>'));
-        });
+        fresh.forEach(function (p, i) { frag.appendChild(el(listRowHtml(p, total - i, 'fresh'))); });
         var anchor = tbody.querySelector('tr:not(.notice)');
         tbody.insertBefore(frag, anchor || null);
         retimeDates(tbody);
@@ -505,6 +510,69 @@
           var wrap = tot.closest('span[hidden]'); if (wrap) wrap.removeAttribute('hidden');
         }
       });
+  }
+
+  /* ── 게시판 검색 (마이그 443) ──────────────────────────────────────────────
+     결과는 클라에서 그린다 — 검색 결과 페이지는 색인 대상이 아니고(정적 페이지가
+     아니다), 목록 RPC 에 인자 하나만 더한 것이라 서버 경로도 하나다.
+     ?q= 를 URL 에 남겨 뒤로가기와 링크 공유가 되게 한다. */
+  function searchUrl(q) {
+    var path = location.pathname;
+    return q ? path + '?q=' + encodeURIComponent(q) : path;
+  }
+
+  function runSearch(q) {
+    var tbody = $('#pv-list'); if (!tbody) return;
+    var note = $('.search-note');
+    if (!note) {
+      note = el('<p class="search-note"></p>');
+      var table = $('table.list');
+      if (table && table.parentNode) table.parentNode.insertBefore(note, table);
+    }
+    note.textContent = '검색 중…';
+    // 페이지 번호와 최신/인기 전환은 정적 목록의 것이다 — 검색 중에는 뜻이 없다.
+    var paging = $('.paging'); if (paging) paging.hidden = true;
+    var sorts = $('.sorts'); if (sorts) sorts.hidden = true;
+
+    sb.rpc('get_hub_community_posts', {
+      p_board_kind: PV.board, p_limit: 50,
+      p_cursor_pinned: null, p_cursor_at: null, p_cursor_id: null,
+      p_popular: false, p_query: q,
+    }).then(function (r) {
+      if (r.error) { note.textContent = msg(r.error); return; }
+      var posts = (r.data && r.data.posts) || [];
+      tbody.innerHTML = '';
+      if (posts.length === 0) {
+        tbody.appendChild(el('<tr class="empty"><td colspan="6">검색 결과가 없습니다.</td></tr>'));
+      } else {
+        var frag = document.createDocumentFragment();
+        posts.forEach(function (post, i) { frag.appendChild(el(listRowHtml(post, posts.length - i, ''))); });
+        tbody.appendChild(frag);
+        retimeDates(tbody);
+      }
+      note.innerHTML = '<b>' + esc(q) + '</b> 검색 결과 ' + posts.length + '건 · ' +
+        '<a href="' + esc(searchUrl('')) + '">전체 목록</a>';
+    }).catch(function (e) { note.textContent = msg(e); });
+  }
+
+  function initSearch() {
+    var form = $('#pv-search'); if (!form) return;
+    var input = $('#pv-q');
+    var q = (new URLSearchParams(location.search).get('q') || '').trim();
+    if (q) { if (input) input.value = q; runSearch(q); }
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var next = (input && input.value || '').trim();
+      // 빈 검색은 정적 목록으로 되돌린다 — 그 편이 링크로도 정직하다.
+      if (!next) { location.href = searchUrl(''); return; }
+      history.pushState({ q: next }, '', searchUrl(next));
+      runSearch(next);
+    });
+    window.addEventListener('popstate', function () {
+      var back = (new URLSearchParams(location.search).get('q') || '').trim();
+      if (back) { if (input) input.value = back; runSearch(back); }
+      else location.reload();
+    });
   }
 
   /* ── 글 페이지: 댓글 최신화 + 댓글 쓰기 + 본인 글/댓글 삭제 ─────────────── */
@@ -743,6 +811,7 @@
     readyResolve();
     retimeDates();
     refreshList();
+    initSearch();
     if (postId) { renderCommentForm(); checkAdmin().then(loadPost); bumpView(); }
   });
 })();

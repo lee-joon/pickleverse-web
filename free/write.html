@@ -15,6 +15,7 @@
     <meta property="og:url" content="https://picklehubkorea.com/free/" />
     <meta property="og:image" content="https://picklehubkorea.com/assets/logo-256.png" />
     <meta name="robots" content="noindex" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap" />
@@ -299,6 +300,14 @@
   .me-link .btn { min-height:32px; padding:4px 10px; font-size:12px; }
   .me-link small { flex:1 0 100%; color:var(--sub); font-size:11px; line-height:1.55; word-break:keep-all; }
   /* 내 정보의 켜고 끄기 한 줄 — 터치 표적을 라벨 전체로 넓힌다(체크박스만 누르게 두면 모바일에서 놓친다). */
+  /* 게시판 검색 — 도구줄 가운데. 좁아지면 한 줄을 통째로 차지한다. */
+  .toolbar .search { display:flex; gap:var(--s2); flex:1 1 200px; min-width:0; margin:0; }
+  .toolbar .search input { flex:1 1 auto; min-width:0; min-height:32px; padding:4px 10px; font:inherit; font-size:13px;
+                           color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r2); }
+  .toolbar .search input::placeholder { color:var(--sub); }
+  .toolbar .search .btn { min-height:32px; padding:4px 12px; font-size:12px; white-space:nowrap; }
+  .search-note { margin:0 0 var(--s2); font-size:13px; color:var(--sub); }
+  .search-note b { color:var(--ink); }
   .me-check { display:flex; align-items:center; gap:var(--s2); font-size:12px; color:var(--ink); cursor:pointer; min-height:32px; }
   .me-check input { width:16px; height:16px; accent-color:var(--brand); flex:0 0 auto; }
   /* DUPR SSO — 규정상 임베드 iframe 이 유일한 연결 경로라 모달 안에 그대로 띄운다. */
@@ -445,9 +454,9 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":false,"write":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=b77affe634"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=b77affe634" defer></script>
-    <script src="https://picklehubkorea.com/assets/editor.js?v=b77affe634" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=479de0dc52"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=479de0dc52" defer></script>
+    <script src="https://picklehubkorea.com/assets/editor.js?v=479de0dc52" defer></script>
   </head>
   <body>
     <div class="top">
