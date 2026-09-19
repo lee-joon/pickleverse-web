@@ -91,7 +91,7 @@
     var sb = App.sb;
     var gate = document.getElementById('me-gate');
     var bodyEl = document.getElementById('me-body');
-    var loaded = false;
+    var loaded = false, loadedScope = null, loadRequest = 0;
     var gateLogin = document.getElementById('me-gate-login');
     if (gateLogin) gateLogin.addEventListener('click', function () { App.openAuth('login'); });
 
@@ -139,6 +139,11 @@
     });
 
     function start() {
+      if (loadedScope !== App.accountScope) {
+        loadedScope = App.accountScope;
+        loaded = false; loadRequest += 1;
+        row = null; prof = null;
+      }
       if (!App.session) {
         loaded = false;
         bodyEl.hidden = true;
@@ -157,6 +162,8 @@
 
 
     function load() {
+      if (!App.session) return;
+      var request = ++loadRequest;
       var uid = App.session.user.id;
       bodyEl.innerHTML = '<p class="me-loading">불러오는 중…</p>';
       Promise.all([
@@ -170,6 +177,7 @@
         App.communityPrefs(),
         App.skillBand(),
       ]).then(function (res) {
+        if (request !== loadRequest || loadedScope !== App.accountScope) return;
         if (res[0].error) { bodyEl.innerHTML = '<p class="me-loading">회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>'; return; }
         row = res[0].data || {};
         prof = (res[1] && res[1].data) || {};
@@ -177,6 +185,8 @@
         bandPref = res[3] === true;
         myBand = res[4] || null;
         render();
+      }).catch(function () {
+        if (request === loadRequest) bodyEl.innerHTML = '<p class="me-loading" role="alert">회원 정보를 불러오지 못했습니다. 페이지를 새로고침해 주세요.</p>';
       });
     }
 

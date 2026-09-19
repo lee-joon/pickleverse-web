@@ -26,15 +26,16 @@
   var App = {
     sb: sb,
     get session() { return session; },
+    get accountScope() { return session ? session.user.id : null; },
     ready: new Promise(function (res) { readyResolve = res; }),
     onAuth: function (cb) { authListeners.push(cb); },
     openAuth: function (m) { openAuth(m); },
-    openProfile: function (cb) { openProfile(cb); },
+    openProfile: function (cb) { return openProfile(cb); },
     checkProfile: function () { return checkProfile(); },
     /* 저장 뒤 캐시를 버리고 다시 읽는다 — 머리글의 이름이 옛 값으로 남지 않게. */
     refreshProfile: function () { profileOk = null; return checkProfile(); },
     get me() { return me; },
-    requireMember: function (cb) { requireMember(cb); },
+    requireMember: function (cb) { return requireMember(cb); },
     msg: function (e) { return msg(e); },
     /** 내 실력대 구간(없으면 null) — 편집기가 체크박스를 드러낼지 판단한다. */
     skillBand: function () { return mySkillBand(); },
@@ -153,7 +154,7 @@
     ['Blocked term', '사용할 수 없는 표현이 포함되어 있습니다.'],
     ['Community write suspended', '커뮤니티 작성이 정지된 계정입니다.'],
     ['Not authenticated', '로그인이 필요합니다.'],
-    ['Not authorized', '뉴스 게시판은 운영자만 쓸 수 있습니다. 자유게시판에 글을 남겨 주세요.'],
+    ['Not authorized', '이 작업을 할 권한이 없습니다. 로그인한 계정을 확인해 주세요.'],
     ['Invalid rich body', '본문 서식에 허용되지 않은 내용이 있습니다. 다시 시도해 주세요.'],
     ['Invalid image path', '사진 정보가 올바르지 않습니다. 사진을 다시 넣어 주세요.'],
     ['Too many images', '사진은 글 하나에 10장까지 넣을 수 있습니다.'],
@@ -198,8 +199,12 @@
     d.addEventListener('click', function (ev) { if (ev.target === d) d.close(); });
     var x = $('[data-x]', d); if (x) x.addEventListener('click', function () { d.close(); });
     d.showModal();
+    var heading = $('h3', d);
+    if (heading) { heading.id = 'pv-dialog-' + (++dialogSeq); d.setAttribute('aria-labelledby', heading.id); }
+    d.querySelectorAll('.pv-err').forEach(function (e) { e.setAttribute('role', 'alert'); });
     return d;
   }
+  var dialogSeq = 0;
   function setErr(d, text) { var e = $('.pv-err', d); if (e) { e.textContent = text || ''; e.hidden = !text; } }
   function busy(form, on) { form.querySelectorAll('button,input,textarea').forEach(function (n) { n.disabled = !!on; }); }
 
@@ -208,14 +213,17 @@
   var me = null; // 본인 행(users) — 본인 화면에만 쓴다. 다른 사람의 행을 읽는 경로는 없다.
   function renderAccount() {
     var slot = $('#pv-account'); if (!slot) return;
+    var html;
     if (session) {
       var name = (me && me.real_name) || (session.user && session.user.email) || '회원';
-      slot.innerHTML = '<span class="me" title="다른 이용자에게는 익명으로 보입니다">' + esc(name) + '</span>' +
+      html = '<span class="account-name" title="다른 이용자에게는 익명으로 보입니다">' + esc(name) + '</span>' +
         '<a class="lnk" href="' + esc(PV.site + '/me.html') + '">내 정보</a>' +
         '<button class="lnk" data-pv="logout">로그아웃</button>';
     } else {
-      slot.innerHTML = '<button class="lnk" data-pv="login">로그인</button><button class="lnk" data-pv="signup">회원가입</button>';
+      html = '<button class="lnk" data-pv="login">로그인</button><button class="lnk" data-pv="signup">회원가입</button>';
     }
+    slot.innerHTML = '<span class="account-desktop">' + html + '</span>' +
+      '<details class="account-mobile"><summary>계정</summary><div class="account-actions">' + html + '</div></details>';
   }
 
   /* 소셜 로그인 버튼 — 어떤 제공자를 켤지는 생성기(PV.oauth)가 정한다.
@@ -358,12 +366,13 @@
   }
   /* 열려 있는 회원정보 창과 그 창이 끝나면 부를 콜백들. 창은 하나만 뜬다 —
      ①로 대부분 막히지만, 서로 모르는 두 경로가 각각 열려 할 수 있으므로 여기서도 막는다. */
-  var profileDialog = null, profileDone = [];
+  var profileDialog = null, profileResult = null;
   function openProfile(onDone) {
     if (profileDialog) {
-      if (onDone) profileDone.push(onDone);
-      return profileDialog;
+      if (onDone) profileResult.then(function (ok) { if (ok) onDone(); });
+      return profileResult;
     }
+    var scope = App.accountScope;
     var d = dialog(
       '<button class="x" data-x aria-label="닫기">×</button>' +
       '<h3>회원 정보 확인</h3><p class="pv-note">커뮤니티 글은 익명으로 올라가지만, 계정에는 앱과 같은 기본 정보가 필요합니다. 이름은 다른 이용자에게 표시되지 않습니다.</p>' +
@@ -379,12 +388,18 @@
       '</form>'
     );
     profileDialog = d;
-    profileDone = onDone ? [onDone] : [];
-    // 사용자가 X 로 닫아도 자물쇠를 풀어 준다 — 안 풀면 다시는 못 연다.
-    d.addEventListener('close', function () { profileDialog = null; });
+    var resolve, completed = false;
+    var result = new Promise(function (done) { resolve = done; });
+    profileResult = result;
+    if (onDone) result.then(function (ok) { if (ok) onDone(); });
+    d.addEventListener('close', function () {
+      if (profileDialog === d) { profileDialog = null; profileResult = null; }
+      resolve(completed);
+    });
     var form = $('#pv-profile', d);
     form.addEventListener('submit', function (ev) {
       ev.preventDefault(); setErr(d, ''); busy(form, true);
+      if (scope !== App.accountScope) { d.close(); return; }
       var nat = form.nat.value;
       sb.rpc('complete_global_profile', {
         p_nationality_type: nat,
@@ -400,18 +415,26 @@
         p_privacy_policy_accepted: true,
         p_hub_visibility_opt_in: false,
       }).then(function (r) {
+        if (scope !== App.accountScope) return;
         busy(form, false);
         if (r.error) { setErr(d, msg(r.error)); return; }
-        profileOk = true; me = { real_name: form.name.value.trim() }; renderAccount(); d.close();
-        var waiting = profileDone; profileDone = [];
-        waiting.forEach(function (fn) { try { fn(); } catch (err) {} });
+        profileOk = true; me = { real_name: form.name.value.trim() }; renderAccount();
+        completed = true; d.close();
+      }).catch(function (e) {
+        busy(form, false); setErr(d, msg(e));
       });
     });
+    return result;
   }
   /** 로그인 + 프로필 완성이 끝난 뒤에만 cb 를 부른다. */
   function requireMember(cb) {
-    if (!session) { openAuth('login'); return; }
-    checkProfile().then(function (ok) { if (ok) cb(); else openProfile(cb); });
+    if (!session) { openAuth('login'); return Promise.resolve(false); }
+    var scope = App.accountScope;
+    return checkProfile().then(function (ok) { return ok || openProfile(); }).then(function (ok) {
+      if (!ok || scope !== App.accountScope) return false;
+      if (cb) cb();
+      return true;
+    });
   }
 
   /* ── 신고 — 앱과 같은 report_content RPC. 같은 사람이 같은 글을 두 번 신고하면
@@ -469,13 +492,24 @@
       '</tr>';
   }
 
+  var listRequest = 0;
   function refreshList() {
-    var tbody = $('#pv-list'); if (!tbody || PV.page !== 1) return;
+    var tbody = $('#pv-list');
+    if (!tbody || PV.page !== 1 || new URLSearchParams(location.search).get('q')) return;
+    var request = ++listRequest;
     var staticIds = {}; (PV.staticIds || []).forEach(function (id) { staticIds[id] = true; });
-    sb.rpc('get_hub_community_posts', { p_board_kind: PV.board, p_limit: 50, p_cursor_pinned: null, p_cursor_at: null, p_cursor_id: null })
+    return sb.rpc('get_hub_community_posts', { p_board_kind: PV.board, p_limit: 50, p_cursor_pinned: null, p_cursor_at: null, p_cursor_id: null, p_popular: !!PV.popular })
       .then(function (r) {
+        if (request !== listRequest) return;
         if (r.error || !r.data) return;
         var posts = r.data.posts || [];
+        if (PV.popular) {
+          tbody.innerHTML = posts.length ? posts.map(function (post) { return listRowHtml(post, '–', ''); }).join('')
+            : '<tr class="empty"><td colspan="6"><strong>아직 인기글이 없습니다</strong>좋아요를 받은 글이 여기에 모입니다.</td></tr>';
+          var count = $('#pv-total'); if (count) count.textContent = posts.length;
+          retimeDates(tbody);
+          return;
+        }
         posts.forEach(function (p) {
           var row = tbody.querySelector('tr[data-id="' + p.id + '"]');
           if (row) {
@@ -485,6 +519,8 @@
             else if (cmt) cmt.remove();
             var vw = row.querySelector('.views');
             if (vw && typeof p.view_count === 'number') vw.textContent = p.view_count;
+            var likes = row.querySelector('.likes');
+            if (likes && typeof p.like_count === 'number') likes.textContent = p.like_count;
           }
         });
         /* 정적 페이지는 최대 2시간 묵는다 — 그 사이 지워진 글이 남아 있으면 눌러도 없는 글이고,
@@ -494,14 +530,23 @@
         tbody.querySelectorAll('tr[data-id]').forEach(function (row) {
           if (!live[row.dataset.id]) row.remove();
         });
-        var fresh = posts.filter(function (p) { return !staticIds[p.id] && !p.is_pinned; });
-        if (fresh.length === 0) return;
+        var fresh = posts.filter(function (p) { return !staticIds[p.id]; });
+        if (fresh.length === 0) {
+          if (!posts.length) tbody.innerHTML = '<tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>첫 이야기를 남겨 주세요.</td></tr>';
+          return;
+        }
         var empty = tbody.querySelector('tr.empty'); if (empty) empty.remove();
-        var total = (PV.total || 0) + fresh.length;
+        var total = (PV.total || 0) + fresh.filter(function (p) { return !p.is_pinned; }).length;
         // 한 줄씩 firstChild 앞에 끼우면 순서가 뒤집혀 번호가 5,6,4 처럼 나온다 —
         // 조각(fragment)에 순서대로 담아 한 번에 넣는다. 공지 행이 있으면 그 아래에.
         var frag = document.createDocumentFragment();
-        fresh.forEach(function (p, i) { frag.appendChild(el(listRowHtml(p, total - i, 'fresh'))); });
+        var pins = document.createDocumentFragment();
+        var normalIndex = 0;
+        fresh.forEach(function (p) {
+          if (p.is_pinned) pins.appendChild(el(listRowHtml(p, '공지', 'notice')));
+          else frag.appendChild(el(listRowHtml(p, total - normalIndex++, 'fresh')));
+        });
+        tbody.insertBefore(pins, tbody.firstChild);
         var anchor = tbody.querySelector('tr:not(.notice)');
         tbody.insertBefore(frag, anchor || null);
         retimeDates(tbody);
@@ -511,7 +556,7 @@
           // 빌드 시점에 글이 0건이면 카운트가 hidden 으로 나간다 — 글이 생겼으니 되살린다.
           var wrap = tot.closest('span[hidden]'); if (wrap) wrap.removeAttribute('hidden');
         }
-      });
+      }).catch(function () {});
   }
 
   /* ── 게시판 검색 (마이그 443) ──────────────────────────────────────────────
@@ -525,9 +570,11 @@
 
   function runSearch(q) {
     var tbody = $('#pv-list'); if (!tbody) return;
+    var request = ++listRequest;
     var note = $('.search-note');
     if (!note) {
       note = el('<p class="search-note"></p>');
+      note.setAttribute('role', 'status');
       var table = $('table.list');
       if (table && table.parentNode) table.parentNode.insertBefore(note, table);
     }
@@ -536,11 +583,12 @@
     var paging = $('.paging'); if (paging) paging.hidden = true;
     var sorts = $('.sorts'); if (sorts) sorts.hidden = true;
 
-    sb.rpc('get_hub_community_posts', {
+    return sb.rpc('get_hub_community_posts', {
       p_board_kind: PV.board, p_limit: 50,
       p_cursor_pinned: null, p_cursor_at: null, p_cursor_id: null,
       p_popular: false, p_query: q,
     }).then(function (r) {
+      if (request !== listRequest) return;
       if (r.error) { note.textContent = msg(r.error); return; }
       var posts = (r.data && r.data.posts) || [];
       tbody.innerHTML = '';
@@ -557,7 +605,7 @@
       }
       note.innerHTML = '<b>' + esc(q) + '</b> 검색 결과 ' + posts.length + '건 · ' +
         '<a href="' + esc(searchUrl('')) + '">전체 목록</a>';
-    }).catch(function (e) { note.textContent = msg(e); });
+    }).catch(function (e) { if (request === listRequest) note.textContent = msg(e); });
   }
 
   function initSearch() {
@@ -584,7 +632,7 @@
   var postId = PV.post || null;
   if (PV.view) { try { postId = new URLSearchParams(location.search).get('id'); } catch (e) { postId = null; } }
 
-  function renderComments(comments) {
+  function renderComments(comments, total) {
     var box = $('#pv-comments'); if (!box) return;
     if (comments.length === 0) { box.innerHTML = ''; }
     else {
@@ -605,25 +653,25 @@
         var react = c.hidden ? '' :
           '<span class="react">' +
             '<button class="rbtn' + (c.my_reaction === 1 ? ' on' : '') + '" data-react-up="' + esc(c.id) + '"' +
-              ' aria-pressed="' + (c.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
+              ' aria-label="댓글 좋아요" aria-pressed="' + (c.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
               THUMB_UP + '<b>' + (c.like_count || 0) + '</b></button>' +
             '<button class="rbtn down' + (c.my_reaction === -1 ? ' on' : '') + '" data-react-down="' + esc(c.id) + '"' +
-              ' aria-pressed="' + (c.my_reaction === -1 ? 'true' : 'false') + '" title="싫어요">' +
+              ' aria-label="댓글 싫어요" aria-pressed="' + (c.my_reaction === -1 ? 'true' : 'false') + '" title="싫어요">' +
               THUMB_DOWN + '<b>' + (c.dislike_count || 0) + '</b></button>' +
           '</span>';
         return '<li' + (c.is_mine ? ' class="is-mine"' : '') + '><span class="who ' + a.cls + '">' + esc(a.label) + badge + mine + '</span>' + txt + react +
           '<span class="when">' + esc(fmtFull(c.created_at)) + (acts.length ? '<span class="acts">' + acts.join('') + '</span>' : '') + '</span></li>';
       }).join('') + '</ul>';
     }
-    var h = $('#pv-ccount'); if (h) h.textContent = comments.length;
+    var h = $('#pv-ccount'); if (h) h.textContent = typeof total === 'number' ? total : comments.length;
   }
   function renderCommentForm() {
     var lock = $('#pv-cform-slot'); if (!lock) return;
     lock.className = 'cform-slot';
     lock.innerHTML =
       '<form class="pv-form pv-cform" id="pv-cform">' +
-        '<textarea name="body" rows="3" maxlength="1000" placeholder="' + (session ? '댓글을 입력하세요 (익명)' : '로그인하면 댓글을 쓸 수 있습니다') + '" required></textarea>' +
-        '<div class="pv-row"><p class="pv-err" hidden></p><button type="submit" class="btn primary">' + (session ? '등록' : '로그인하고 댓글 쓰기') + '</button></div>' +
+        '<textarea name="body" aria-label="댓글" rows="3" maxlength="1000" placeholder="' + (session ? '댓글을 입력하세요 (익명)' : '로그인하면 댓글을 쓸 수 있습니다') + '"' + (session ? ' required' : '') + '></textarea>' +
+        '<div class="pv-row"><p class="pv-err" role="alert" hidden></p><button type="submit" class="btn primary">' + (session ? '등록' : '로그인하고 댓글 쓰기') + '</button></div>' +
       '</form>';
     var form = $('#pv-cform', lock);
     form.addEventListener('submit', function (ev) {
@@ -635,9 +683,9 @@
           busy(form, false);
           if (r.error) { var e = $('.pv-err', form); e.textContent = msg(r.error); e.hidden = false; return; }
           form.body.value = '';
-          loadPost();
-        });
-      });
+          loadPost({ revealComment: r.data && r.data.id });
+        }).catch(function (e) { busy(form, false); setErr(form, msg(e)); });
+      }).catch(function (e) { setErr(form, msg(e)); });
     });
   }
   function richBody(p) {
@@ -660,7 +708,7 @@
       '<div class="body rich">' + richBody(p) + '</div>' +
       (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
       '<div class="likerow"><button class="likebtn' + (p.my_reaction === 1 ? ' on' : '') + '" data-like-post' +
-        ' aria-pressed="' + (p.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
+        ' aria-label="글 좋아요" aria-pressed="' + (p.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
         PADDLE(p.my_reaction === 1) + '<b id="pv-likes">' + (p.like_count || 0) + '</b></button></div>' +
       '<div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a><span id="pv-postactions"></span></div>';
   }
@@ -695,17 +743,83 @@
       if (!r.error) setViews(r.data);
     });
   }
-  function loadPost() {
-    if (!postId) return;
-    sb.rpc('get_hub_community_post', { p_post_id: postId, p_comment_limit: 100, p_comment_after_at: null, p_comment_after_id: null })
+  var postRequest = 0, commentsShown = [], commentTotal = 0, commentCursor = null;
+  var moreComments = false, commentsBusy = false;
+  function postPage(after) {
+    return sb.rpc('get_hub_community_post', {
+      p_post_id: postId, p_comment_limit: 100,
+      p_comment_after_at: after ? after.at : null, p_comment_after_id: after ? after.id : null,
+    });
+  }
+  function cursorFor(rows) {
+    var last = rows[rows.length - 1];
+    return last ? { at: last.created_at, id: last.id } : null;
+  }
+  function renderCommentPaging(error) {
+    var slot = $('#pv-comment-paging'); if (!slot) return;
+    slot.innerHTML = (error ? '<p role="alert">' + esc(error) + '</p>' : '') +
+      (moreComments ? '<button type="button" class="btn" data-more-comments' + (commentsBusy ? ' disabled' : '') + '>' +
+        (commentsBusy ? '불러오는 중…' : '댓글 더보기') + '</button>' : '');
+    var button = $('[data-more-comments]', slot);
+    if (button) button.addEventListener('click', loadMoreComments);
+  }
+  function loadMoreComments() {
+    if (!moreComments || commentsBusy || !commentCursor) return Promise.resolve();
+    var request = postRequest;
+    commentsBusy = true; renderCommentPaging();
+    return postPage(commentCursor).then(function (r) {
+      if (request !== postRequest) return;
+      if (r.error) throw r.error;
+      var rows = (r.data && r.data.comments) || [];
+      var known = new Set(commentsShown.map(function (c) { return c.id; }));
+      commentsShown = commentsShown.concat(rows.filter(function (c) { return !known.has(c.id); }));
+      commentTotal = r.data.post.comment_count;
+      commentCursor = cursorFor(rows);
+      moreComments = rows.length === 100 && commentsShown.length < commentTotal;
+      renderComments(commentsShown, commentTotal);
+      commentsBusy = false; renderCommentPaging();
+    }).catch(function (e) {
+      if (request !== postRequest) return;
+      commentsBusy = false; renderCommentPaging(msg(e));
+    });
+  }
+  function loadPost(options) {
+    if (!postId) return Promise.resolve();
+    options = options && typeof options === 'object' ? options : {};
+    var request = ++postRequest, accumulated = [];
+    var wanted = Math.max(100, commentsShown.length);
+    commentsBusy = false;
+    function read(after) {
+      return postPage(after).then(function (r) {
+        if (request !== postRequest || r.error || !r.data || !r.data.post) return r;
+        var rows = r.data.comments || [];
+        accumulated = accumulated.concat(rows);
+        var next = cursorFor(rows);
+        var missing = options.revealComment && !accumulated.some(function (c) { return c.id === options.revealComment; });
+        if (rows.length === 100 && accumulated.length < r.data.post.comment_count &&
+            (missing || accumulated.length < wanted) && (!after || next.id !== after.id)) return read(next);
+        r.data.comments = accumulated;
+        return r;
+      });
+    }
+    return read(null)
       .then(function (r) {
+        if (request !== postRequest) return;
         var data = r.data;
         if (r.error || !data || !data.post || !data.post.id) {
-          if (PV.view) { var art = $('#pv-article'); if (art) art.innerHTML = '<div class="body"><p>글을 찾을 수 없습니다. 삭제되었을 수 있습니다.</p></div><div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a></div>'; }
+          if (r.error && !/Post not found/i.test(r.error.message || '')) throw r.error;
+          var art = $('#pv-article'); if (art) art.innerHTML = '<div class="body"><p>글을 찾을 수 없습니다. 삭제되었을 수 있습니다.</p></div><div class="foot"><a class="btn" href="' + esc(base + '/') + '">목록</a></div>';
+          commentsShown = []; moreComments = false;
+          renderComments([], 0); renderCommentPaging();
+          var formSlot = $('#pv-cform-slot'); if (formSlot) formSlot.hidden = true;
           return;
         }
-        if (PV.view) renderArticle(data.post);
-        renderComments(data.comments || []);
+        renderArticle(data.post);
+        commentsShown = data.comments || []; commentTotal = data.post.comment_count;
+        commentCursor = cursorFor(commentsShown);
+        moreComments = commentsShown.length < commentTotal && commentsShown.length > 0;
+        renderComments(commentsShown, commentTotal); renderCommentPaging();
+        var formSlot = $('#pv-cform-slot'); if (formSlot) formSlot.hidden = false;
         setViews(data.post.view_count);
         var acts = $('#pv-postactions');
         if (acts) {
@@ -726,17 +840,26 @@
         }
         var metaWho = $('#pv-article .meta b, .view .meta b');
         if (data.post.is_mine && metaWho && !metaWho.querySelector('.mine')) metaWho.appendChild(el('<span class="mine">내 글</span>'));
+      }).catch(function (e) {
+        if (request !== postRequest) return;
+        var slot = $('#pv-comment-paging');
+        if (slot) {
+          slot.innerHTML = '<p role="alert">' + esc(msg(e)) + '</p><button class="btn" type="button">다시 불러오기</button>';
+          $('button', slot).addEventListener('click', function () { loadPost(); });
+        }
       });
   }
 
   /* ── 이벤트 위임 ───────────────────────────────────────────────────────── */
   document.addEventListener('click', function (ev) {
     var t = ev.target.closest('[data-pv],[data-del-comment],[data-del-post],[data-mute],[data-unmute],[data-report-comment],[data-report-post],[data-pin],[data-like-post],[data-react-up],[data-react-down]'); if (!t) return;
+    var accountMenu = t.closest('.account-mobile'); if (accountMenu) accountMenu.open = false;
     if (t.hasAttribute('data-like-post')) {
       if (!session) { openAuth('login'); return; }
       t.disabled = true;
       sb.rpc('hub_react_community_post', { p_post_id: postId, p_on: t.getAttribute('aria-pressed') !== 'true' })
-        .then(function (r) { if (r.error) alert(msg(r.error)); loadPost(); });
+        .then(function (r) { if (r.error) throw r.error; return loadPost(); })
+        .catch(function (e) { alert(msg(e)); }).finally(function () { t.disabled = false; });
     }
     else if (t.dataset.reactUp || t.dataset.reactDown) {
       if (!session) { openAuth('login'); return; }
@@ -746,7 +869,8 @@
       sb.rpc('hub_react_community_comment', {
         p_comment_id: up ? t.dataset.reactUp : t.dataset.reactDown,
         p_value: already ? 0 : (up ? 1 : -1),
-      }).then(function (r) { if (r.error) alert(msg(r.error)); loadPost(); });
+      }).then(function (r) { if (r.error) throw r.error; return loadPost(); })
+        .catch(function (e) { alert(msg(e)); }).finally(function () { t.disabled = false; });
     }
     else if (t.dataset.pin) {
       t.disabled = true;
@@ -802,12 +926,19 @@
   sb.auth.onAuthStateChange(function (event, s) {
     // 계정이 바뀌면 진행 중인 조회도 버린다 — 남기면 이전 계정의 결과가
     // 새 호출자에게 돌아가 창이 또 뜬다.
-    session = s || null; profileOk = null; profileCheck = null; if (!session) me = null;
+    var previousScope = App.accountScope;
+    session = s || null;
+    var accountChanged = previousScope !== App.accountScope;
+    if (accountChanged) {
+      profileOk = null; profileCheck = null; me = null;
+      if (profileDialog) profileDialog.close();
+      postRequest += 1; commentsShown = [];
+    }
     renderAccount();
     authListeners.forEach(function (cb) { try { cb(event); } catch (e) {} });
     if (event === 'PASSWORD_RECOVERY') openNewPassword();
-    if (event === 'SIGNED_IN') { checkProfile().then(function (ok) { if (!ok) openProfile(); }); }
-    if (postId) { renderCommentForm(); checkAdmin().then(loadPost); }
+    if (event === 'SIGNED_IN') { checkProfile().then(function (ok) { if (!ok && session) openProfile(); }).catch(function () {}); }
+    if (postId && accountChanged) { renderCommentForm(); checkAdmin().then(loadPost); }
   });
   sb.auth.getSession().then(function (r) {
     session = (r.data && r.data.session) || null;

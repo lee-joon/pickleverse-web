@@ -95,6 +95,40 @@ export function richImagePaths(doc) {
   return out.slice(0, LIMITS.images);
 }
 
+/** 쓰기는 읽기용 정제로 자르기 전에 검증한다. 긴 동일 서식 run은 무손실 분할한다. */
+export function prepareRichWrite(raw) {
+  if (!raw || !Array.isArray(raw.blocks)) throw new Error('본문을 확인해 주세요.');
+  const plain = richToPlainText(raw);
+  if (!plain) throw new Error('내용을 입력해 주세요.');
+  if (plain.length > 5000) throw new Error(`내용은 5,000자까지 쓸 수 있습니다. (현재 ${plain.length}자)`);
+  if (raw.blocks.length > LIMITS.blocks) throw new Error('문단이 너무 많습니다. 문단을 합쳐 주세요.');
+  const paths = [];
+  const blocks = raw.blocks.map((b) => {
+    if (b.t === 'img') {
+      if (!isValidImagePath(b.path)) throw new Error('사진을 다시 넣어 주세요.');
+      if (!paths.includes(b.path)) paths.push(b.path);
+      return b;
+    }
+    const runs = [];
+    for (const r of b.runs) {
+      let text = r.text;
+      while (text.length > LIMITS.runText) {
+        let end = LIMITS.runText;
+        if (/[\uD800-\uDBFF]/.test(text[end - 1])) end -= 1;
+        runs.push({ ...r, text: text.slice(0, end) });
+        text = text.slice(end);
+      }
+      runs.push({ ...r, text });
+    }
+    if (runs.length > LIMITS.runs) throw new Error('서식이 너무 많습니다. 일부 서식을 정리해 주세요.');
+    return { ...b, runs };
+  });
+  if (paths.length > LIMITS.images) throw new Error('사진은 글 하나에 10장까지 넣을 수 있습니다.');
+  const doc = sanitizeRich({ v: 1, blocks }, paths);
+  if (richToPlainText(doc) !== plain) throw new Error('본문을 보존하지 못했습니다. 서식을 확인해 주세요.');
+  return { doc, plain, paths };
+}
+
 const esc = (s) =>
   String(s ?? '')
     .replaceAll('&', '&amp;')
@@ -152,5 +186,5 @@ export const RICH_CSS = `
 `;
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.PVRich = { sanitizeRich, richToPlainText, richImagePaths, renderRichHtml, imageUrl, isValidImagePath, normalizeText, LIMITS, BUCKET };
+  globalThis.PVRich = { sanitizeRich, richToPlainText, richImagePaths, prepareRichWrite, renderRichHtml, imageUrl, isValidImagePath, normalizeText, LIMITS, BUCKET };
 }

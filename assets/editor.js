@@ -21,8 +21,9 @@
   var draftId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
   var MAX_ORIGINAL = 20 * 1024 * 1024; // 오너 결정: 20MB 이하만
   var MAX_EDGE = 1600, JPEG_Q = 0.85, MAX_IMAGES = Rich.LIMITS.images;
-  var DRAFT_KEY = 'pv-draft-' + PV.board;
-  var uploaded = []; // 이 편집 세션에서 올린 경로(등록 안 하고 떠나면 삭제 시도)
+  var DRAFT_KEY = null;
+  var editorScope, editorEpoch = 0;
+  var uploaded = [], originalPaths = [];
   var linkUrl = null; // 뉴스 관련 링크
   // ?edit=<id> 로 들어오면 수정 모드다. 서버(hub_update_community_post)가 본인 글인지 다시 판정한다.
   var editId = (function () { try { return new URLSearchParams(location.search).get('edit'); } catch (e) { return null; } })();
@@ -47,10 +48,11 @@
   var BAND_LABELS = { lt25: '2.5 미만', '25_30': '2.5~3.0', '30_35': '3.0~3.5', gte35: '3.5 이상' };
   function revealSkillBand() {
     // 수정 모드는 작성 시점 값이라 여기서 바꾸지 않는다(끄고 켜기는 글 화면에서).
-    // 프로필 조회는 app.js 가 맡는다 — 편집기는 사용자 식별자를 어떤 형태로도 쥐지 않는다
-    // (업로드 경로·페이로드에 id 가 새지 않게 하는 익명성 가드, communityAnonymity.test).
+    // 프로필 조회는 app.js 가 맡는다. 로컬 초안의 계정 범위는 업로드 경로/페이로드에 넣지 않는다.
     if (!bandRow || editId || !App.skillBand) return;
+    var epoch = editorEpoch;
     App.skillBand().then(function (band) {
+      if (epoch !== editorEpoch) return;
       if (!band || !BAND_LABELS[band]) return;
       var label = $('#ed-band-label');
       if (label) label.textContent = '(' + BAND_LABELS[band] + ')';
@@ -58,21 +60,45 @@
       // 내 정보에서 정한 기본값(마이그 441)으로 시작한다. 여기서 바꿔도 이 글에만
       // 적용되고 기본값은 그대로다 — 기본값은 내 정보에서만 바뀐다.
       if (bandBox && App.communityPrefs) {
-        App.communityPrefs().then(function (on) { bandBox.checked = !!on; }).catch(function () {});
+        App.communityPrefs().then(function (on) { if (epoch === editorEpoch) bandBox.checked = !!on; }).catch(function () {});
       }
     }).catch(function () {});
   }
 
   /* ── 로그인 게이트: 페이지 자체가 문지기다 ─────────────────────────────── */
   var gate = $('#ed-gate'), form = $('#ed-form');
+  function resetEditor() {
+    editorEpoch += 1;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null; dirty = false; submitting = false;
+    form.hidden = true; gate.hidden = false;
+    uploaded = []; originalPaths = []; loadedEdit = false; linkUrl = null;
+    draftId = uuid();
+    root.innerHTML = ''; $('#ed-title').value = ''; $('#ed-draft').textContent = '';
+    $('#ed-restore').hidden = true;
+    if (bandBox) bandBox.checked = false;
+    if (bandRow) bandRow.hidden = true;
+    var lb = $('#ed-link-btn'); if (lb) lb.classList.remove('on');
+    document.querySelectorAll('dialog.ned-photos, dialog.ned-pub').forEach(function (d) { d.close(); });
+    selectFigure(null); status(''); updatePlaceholder();
+  }
   function applyGate() {
+    if (editorScope !== App.accountScope) {
+      if (dirty && !submitting) saveDraft();
+      resetEditor();
+      editorScope = App.accountScope;
+      DRAFT_KEY = editorScope ? 'pv-draft-' + editorScope + '-' + PV.board : null;
+    }
+    var epoch = editorEpoch;
     if (App.session) {
+      if (!form.hidden) return;
       App.checkProfile().then(function (ok) {
+        if (epoch !== editorEpoch) return;
         if (!ok) { App.openProfile(applyGate); return; }
         gate.hidden = true; form.hidden = false;
         revealSkillBand();
         if (editId) loadForEdit(); else offerRestore();
-      });
+      }).catch(function (e) { if (epoch === editorEpoch) status(errText(e), true); });
     } else {
       gate.hidden = false; form.hidden = true;
     }
@@ -118,6 +144,7 @@
       var b = document.querySelector('[data-cmd="' + c + '"]'); if (!b) return;
       var on = false; try { on = document.queryCommandState(c); } catch (e) {}
       b.classList.toggle('on', !!on);
+      b.setAttribute('aria-pressed', String(!!on));
     });
     var sel = window.getSelection();
     if (sel && sel.anchorNode && root.contains(sel.anchorNode)) {
@@ -136,6 +163,7 @@
   var fileInput = $('#ed-file');
   $('#ed-add-image').addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function () {
+    var epoch = editorEpoch;
     var files = Array.prototype.slice.call(fileInput.files || []);
     fileInput.value = '';
     if (!files.length) return;
@@ -154,6 +182,7 @@
     Promise.all(ok.map(function (f) {
       return downsize(f).then(function (out) { out.name = f.name; return out; });
     })).then(function (items) {
+      if (epoch !== editorEpoch) return;
       status('');
       openPhotoPreview(items);
     }).catch(function (e) { status(errText(e), true); });
@@ -163,8 +192,10 @@
 
   /** 미리보기 — 여기서 확인해야 실제로 올라간다. 취소하면 업로드도, 흔적도 없다. */
   function openPhotoPreview(items) {
+    var epoch = editorEpoch, pending = items.slice(), sending = false;
     var urls = items.map(function (it) { return URL.createObjectURL(it.blob); });
     var d = document.createElement('dialog'); d.className = 'pv ned-photos';
+    d.setAttribute('aria-label', '사진 확인');
     d.innerHTML =
       '<button class="x" data-x aria-label="닫기">×</button><h3>사진 확인</h3>' +
       '<p class="pv-note">확인을 누르면 올라갑니다. 긴 변 ' + MAX_EDGE + 'px 로 줄이고 위치 정보는 지웠습니다.</p>' +
@@ -178,26 +209,36 @@
     document.body.appendChild(d);
     function cleanup() { urls.forEach(function (u) { URL.revokeObjectURL(u); }); d.remove(); }
     d.addEventListener('close', cleanup);
+    d.addEventListener('cancel', function (ev) { if (sending) ev.preventDefault(); });
     d.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
     d.showModal();
     $('#ph-go', d).addEventListener('click', function () {
-      var go = $('#ph-go', d); go.disabled = true;
+      if (sending || epoch !== editorEpoch) return;
+      sending = true;
+      d.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
       status('업로드 중…');
       var chain = Promise.resolve();
-      items.forEach(function (it) { chain = chain.then(function () { return uploadImage(it); }); });
-      chain.then(function () { status(''); d.close(); })
+      pending.slice().forEach(function (it) {
+        chain = chain.then(function () { return uploadImage(it, epoch); }).then(function () { pending.shift(); });
+      });
+      chain.then(function () { sending = false; if (epoch === editorEpoch) status(''); d.close(); })
         .catch(function (e) {
-          go.disabled = false; status('');
+          sending = false;
+          if (epoch !== editorEpoch) return;
+          d.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+          status('');
           var err = $('.pv-err', d); if (err) { err.textContent = errText(e); err.hidden = false; }
         });
     });
   }
 
-  function uploadImage(out) {
+  function uploadImage(out, epoch) {
+    if (epoch !== editorEpoch || !editorScope || editorScope !== App.accountScope) return Promise.reject(new Error('로그인 계정이 변경되었습니다.'));
     var path = 'posts/' + draftId + '/' + uuid() + '.jpg';
     return App.sb.storage.from(Rich.BUCKET).upload(path, out.blob, { contentType: 'image/jpeg', upsert: false })
       .then(function (r) {
         if (r.error) throw r.error;
+        if (epoch !== editorEpoch) throw new Error('로그인 계정이 변경되었습니다.');
         uploaded.push(path);
         insertFigure(path, out.w, out.h);
         markDirty();
@@ -298,9 +339,7 @@
     else if (k === 'up') { var prev = fig.previousElementSibling; if (prev) root.insertBefore(fig, prev); }
     else if (k === 'down') { var next = fig.nextElementSibling; if (next) root.insertBefore(next, fig); }
     else if (k === 'remove') {
-      var path = fig.dataset.path; selectFigure(null); fig.remove();
-      App.sb.storage.from(Rich.BUCKET).remove([path]).catch(function () {});
-      uploaded = uploaded.filter(function (p) { return p !== path; });
+      selectFigure(null); fig.remove();
       markDirty(); return;
     }
     syncImgTools(fig); markDirty();
@@ -416,9 +455,11 @@
   function loadForEdit() {
     if (loadedEdit) return;
     loadedEdit = true;
+    var epoch = editorEpoch;
     status('불러오는 중…');
     App.sb.rpc('get_hub_community_post', { p_post_id: editId, p_comment_limit: 1, p_comment_after_at: null, p_comment_after_id: null })
       .then(function (r) {
+        if (epoch !== editorEpoch) return;
         var post = r.data && r.data.post;
         if (r.error || !post) throw (r.error || new Error('Post not found'));
         if (!post.is_mine) throw new Error('Not authorized');
@@ -431,39 +472,32 @@
           f.querySelectorAll('.ed-imgtools').forEach(function (t) { t.remove(); });
           f.insertAdjacentHTML('beforeend', IMG_TOOLS);
         });
-        uploaded = paths.slice(); // 편집 중 지운 사진은 게시 때 파일까지 정리된다
+        originalPaths = paths.slice();
         linkUrl = post.link_url || null;
         var lb = $('#ed-link-btn'); if (lb) lb.classList.toggle('on', !!linkUrl);
         updatePlaceholder();
         status('');
       })
       .catch(function (e) {
+        if (epoch !== editorEpoch) return;
         status(String(e && e.message) === 'Not authorized' ? '내가 쓴 글만 수정할 수 있습니다.' : errText(e), true);
         form.hidden = true;
       });
   }
 
-  /* ── 올렸다가 안 쓴 사진 정리 ────────────────────────────────────────────
-     사진을 도구로 지우면 그 자리에서 파일까지 지운다(imgAction remove). 하지만
-     전체 선택 후 삭제처럼 다른 경로로 사라지면 파일만 남는다. 그래서 (1) 게시 직전,
-     (2) 초안을 버릴 때, (3) 오래된 초안을 자동으로 버릴 때 본문에 없는 업로드를 지운다.
-     편집 중에는 하지 않는다 — 실행 취소로 되살아난 사진의 파일이 이미 없으면 더 나쁘다.
-     삭제 권한은 432 의 "hub community owner delete" 정책(본인 업로드 한정)이다. */
+  /* 기존 사진은 글 저장 성공 뒤에만 삭제한다. 취소/실패/실행 취소는 원본을 보존한다. */
   function removeFiles(paths) {
     if (!paths || !paths.length) return Promise.resolve();
     return App.sb.storage.from(Rich.BUCKET).remove(paths).catch(function () {});
   }
-  function inDocument() {
-    return Array.prototype.map.call(root.querySelectorAll('figure.ed-img'), function (f) { return f.dataset.path; });
-  }
-  function cleanupUnused() {
-    var keep = inDocument();
-    var drop = uploaded.filter(function (p) { return keep.indexOf(p) < 0; });
-    uploaded = uploaded.filter(function (p) { return keep.indexOf(p) >= 0; });
+  function cleanupUnused(keep) {
+    var drop = originalPaths.concat(uploaded).filter(function (p) { return keep.indexOf(p) < 0; });
+    uploaded = []; originalPaths = keep.slice();
     return removeFiles(drop);
   }
   /** 이 브라우저에 남은 초안을 버린다 — 그 초안이 올린 사진까지 같이. */
   function discardDraft(saved) {
+    if (!DRAFT_KEY) return Promise.resolve();
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
     return removeFiles((saved && Array.isArray(saved.uploaded)) ? saved.uploaded : []);
   }
@@ -474,23 +508,33 @@
   function markDirty() { dirty = true; updatePlaceholder(); if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 1500); }
   function saveDraft() {
     if (editId) return; // 수정 모드는 새 글 초안과 무관하다
+    if (!DRAFT_KEY) return;
     try {
-      var html = root.innerHTML, title = $('#ed-title').value;
+      var title = $('#ed-title').value;
       if (!title.trim() && !root.textContent.trim() && !root.querySelector('figure')) { localStorage.removeItem(DRAFT_KEY); $('#ed-draft').textContent = ''; return; }
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: title, html: html, at: Date.now(), draftId: draftId, uploaded: uploaded }));
+      var doc = serialize();
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: title, doc: doc, plain: Rich.richToPlainText(doc), linkUrl: linkUrl, at: Date.now(), draftId: draftId, uploaded: uploaded }));
       var d = new Date(); $('#ed-draft').textContent = '임시저장 ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
     } catch (e) {}
   }
   function offerRestore() {
+    if (!DRAFT_KEY) return;
     var bar = $('#ed-restore'); if (!bar) return;
     var saved = null; try { saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) {}
-    if (!saved || !(saved.title || saved.html) || $('#ed-title').value || root.textContent.trim()) return;
+    if (!saved || !(saved.title || saved.doc) || $('#ed-title').value || root.textContent.trim()) return;
     // 2주 넘은 초안은 묻지 않고 버린다 — 안 그러면 그 초안이 올린 사진이 영영 남는다.
     if (saved.at && Date.now() - saved.at > DRAFT_TTL) { discardDraft(saved); return; }
     bar.hidden = false;
     $('#ed-restore-yes').onclick = function () {
       $('#ed-title').value = saved.title || '';
-      root.innerHTML = saved.html || '';
+      try {
+        var restored = Rich.prepareRichWrite(saved.doc).doc;
+        restored = Rich.sanitizeRich(restored, Array.isArray(saved.uploaded) ? saved.uploaded : []);
+        root.innerHTML = richToEditorHtml(restored);
+      } catch (e) {
+        root.innerHTML = plainToEditorHtml(saved.plain || '');
+        if (saved.plain) status('초안을 텍스트로 복원했습니다. 내용과 서식을 확인해 주세요.');
+      }
       // 도구 마크업은 최신으로 다시 붙인다(저장본에 옛 도구가 있어도 무시)
       root.querySelectorAll('figure.ed-img').forEach(function (f) {
         f.querySelectorAll('.ed-imgtools').forEach(function (t) { t.remove(); });
@@ -498,6 +542,7 @@
       });
       if (saved.draftId) draftId = saved.draftId;
       if (Array.isArray(saved.uploaded)) uploaded = saved.uploaded.slice();
+      linkUrl = saved.linkUrl && /^https:\/\//.test(saved.linkUrl) ? saved.linkUrl : null;
       bar.hidden = true; updatePlaceholder(); markDirty();
     };
     $('#ed-restore-no').onclick = function () { discardDraft(saved); bar.hidden = true; };
@@ -525,18 +570,17 @@
     if (submitting) return;
     var title = $('#ed-title').value.trim();
     if (!title) { status('제목을 입력해 주세요.', true); $('#ed-title').focus(); return; }
-    var raw = serialize();
-    var paths = Rich.richImagePaths(raw);
-    var doc = Rich.sanitizeRich(raw, paths);
-    var plain = Rich.richToPlainText(doc);
-    if (!plain) { status('내용을 입력해 주세요.', true); root.focus(); return; }
-    if (plain.length > 5000) { status('내용은 5,000자까지 쓸 수 있습니다. (현재 ' + plain.length + '자)', true); return; }
+    var prepared;
+    try { prepared = Rich.prepareRichWrite(serialize()); }
+    catch (e) { status(e.message, true); root.focus(); return; }
     if (!App.session) { App.openAuth('login'); return; }
-    openPublishPanel(title, doc, paths, plain);
+    openPublishPanel(title, prepared.doc, prepared.paths, prepared.plain);
   });
 
   function openPublishPanel(title, doc, paths, plain) {
+    var epoch = editorEpoch, draftKey = DRAFT_KEY;
     var d = document.createElement('dialog'); d.className = 'pv ned-pub';
+    d.setAttribute('aria-label', editId ? '수정 저장' : '글 게시');
     var imgCount = paths.length;
     d.innerHTML =
       '<button class="x" data-x aria-label="닫기">×</button><h3>' + (editId ? '수정' : '게시') + '</h3>' +
@@ -553,9 +597,11 @@
       '<div class="foot"><button type="button" class="btn" data-x>취소</button><button type="button" class="btn primary" id="pub-go">' + (editId ? '수정 저장' : '게시') + '</button></div>';
     document.body.appendChild(d);
     d.addEventListener('close', function () { d.remove(); });
+    d.addEventListener('cancel', function (ev) { if (submitting) ev.preventDefault(); });
     d.querySelectorAll('[data-x]').forEach(function (b) { b.addEventListener('click', function () { d.close(); }); });
     d.showModal();
     $('#pub-go', d).addEventListener('click', function () {
+      if (submitting || epoch !== editorEpoch) return;
       var err = $('.pv-err', d);
       var link = null;
       if (isNews && !editId) {
@@ -564,8 +610,10 @@
       }
       var hasFormat = doc.blocks.some(function (b) { return b.t === 'img' || b.align || b.runs.some(function (r) { return r.b || r.i || r.u || r.color || r.size; }); });
       submitting = true; $('#pub-go', d).disabled = true; err.hidden = true; status(editId ? '저장 중…' : '게시 중…');
-      cleanupUnused(); // 본문에서 빠진 사진은 글과 함께 남기지 않는다
-      App.requireMember(function () {
+      d.querySelectorAll('[data-x]').forEach(function (b) { b.disabled = true; });
+      App.requireMember().then(function (ok) {
+        if (!ok) throw new Error('게시가 취소되었습니다. 회원 정보를 확인해 주세요.');
+        if (epoch !== editorEpoch) throw new Error('로그인 계정이 변경되었습니다.');
         var call = editId
           ? App.sb.rpc('hub_update_community_post', {
               p_post_id: editId, p_title: title, p_body: plain,
@@ -576,17 +624,24 @@
               p_body_rich: hasFormat ? doc : null,
               p_show_skill_band: !!(bandBox && bandBox.checked),
             });
-        call.then(function (r) {
+        return call.then(function (r) {
           if (r.error) throw r.error;
+          if (epoch !== editorEpoch) return;
           var id = editId || (r.data && r.data.id);
-          uploaded = []; // 글에 귀속됐다
-          try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+          if (saveTimer) clearTimeout(saveTimer);
+          saveTimer = null;
+          if (!editId) { try { localStorage.removeItem(draftKey); } catch (e) {} }
           // 436: 웹 공개 토글 폐지 — 뉴스도 자유게시판처럼 게시 즉시 앱·웹 모두에 나간다.
           dirty = false;
-          location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
-        }).catch(function (e) {
-          submitting = false; $('#pub-go', d).disabled = false; err.textContent = errText(e); err.hidden = false; status('');
+          return cleanupUnused(paths).then(function () {
+            if (epoch === editorEpoch) location.href = PV.site + '/' + (isNews ? 'news' : 'free') + '/view.html?id=' + encodeURIComponent(id);
+          });
         });
+      }).catch(function (e) {
+        if (epoch !== editorEpoch) return;
+        submitting = false; $('#pub-go', d).disabled = false;
+        d.querySelectorAll('[data-x]').forEach(function (b) { b.disabled = false; });
+        err.textContent = errText(e); err.hidden = false; status('');
       });
     });
   }
