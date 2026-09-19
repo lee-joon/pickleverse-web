@@ -146,8 +146,10 @@
     ['Password should be at least', '비밀번호는 6자 이상이어야 합니다.'],
     ['Unable to validate email', '이메일 형식이 올바르지 않습니다.'],
     ['For security purposes', '조금 전에 보냈습니다. 1분쯤 뒤에 다시 시도해 주세요.'],
-    ['rate limit', '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.'],
+    // 부분일치 첫 승이다 — 'rate limited' 는 'rate limit' 을 포함하므로
+    // 좁은 쪽(전용 문구)이 반드시 위에 있어야 도달한다.
     ['Rate limited', '잠시 후 다시 시도해 주세요. (시간당 작성 한도)'],
+    ['rate limit', '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.'],
     ['Blocked term', '사용할 수 없는 표현이 포함되어 있습니다.'],
     ['Community write suspended', '커뮤니티 작성이 정지된 계정입니다.'],
     ['Not authenticated', '로그인이 필요합니다.'],

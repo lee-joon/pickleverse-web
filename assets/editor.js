@@ -341,7 +341,7 @@
       return a === 'center' || a === 'right' ? a : 'left';
     }
     function walk(node, st) {
-      if (node.nodeType === 3) { pushText(node.nodeValue.replace(/ /g, ' '), st); return; }
+      if (node.nodeType === 3) { pushText(Rich.normalizeText(node.nodeValue), st); return; }
       if (node.nodeType !== 1) return;
       var tag = node.tagName;
       if (tag === 'FIGURE' && node.classList.contains('ed-img')) {

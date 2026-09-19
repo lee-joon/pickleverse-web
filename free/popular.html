@@ -302,10 +302,13 @@
   /* 내 정보의 켜고 끄기 한 줄 — 터치 표적을 라벨 전체로 넓힌다(체크박스만 누르게 두면 모바일에서 놓친다). */
   /* 게시판 검색 — 도구줄 가운데. 좁아지면 한 줄을 통째로 차지한다. */
   .toolbar .search { display:flex; gap:var(--s2); flex:1 1 200px; min-width:0; margin:0; }
-  .toolbar .search input { flex:1 1 auto; min-width:0; min-height:32px; padding:4px 10px; font:inherit; font-size:13px;
-                           color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--r2); }
+  /* 입력 글자 16px 은 멋이 아니라 규격이다 — 그보다 작으면 iOS 가 탭할 때 화면을
+     자동 확대한다. 터치 표적 44px 과 함께 docs/hub-community-web.md 의 규약이다.
+     모바일 블록의 .btn{min-height:44px} 는 특정도가 낮아 여기서 직접 적어야 이긴다. */
+  .toolbar .search input { flex:1 1 auto; min-width:0; min-height:44px; padding:8px 12px; font:inherit; font-size:16px;
+                           color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:6px; }
   .toolbar .search input::placeholder { color:var(--sub); }
-  .toolbar .search .btn { min-height:32px; padding:4px 12px; font-size:12px; white-space:nowrap; }
+  .toolbar .search .btn { min-height:44px; padding:8px 14px; font-size:14px; white-space:nowrap; }
   .search-note { margin:0 0 var(--s2); font-size:13px; color:var(--sub); }
   .search-note b { color:var(--ink); }
   .me-check { display:flex; align-items:center; gap:var(--s2); font-size:12px; color:var(--ink); cursor:pointer; min-height:32px; }
@@ -454,8 +457,8 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":true};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=73e53c7981"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=73e53c7981" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=658512817c"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=658512817c" defer></script>
     
   </head>
   <body>

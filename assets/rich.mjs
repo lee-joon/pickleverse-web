@@ -65,6 +65,22 @@ function dimension(v) {
   return Number.isInteger(v) && v >= 1 && v <= LIMITS.imageEdge ? v : null;
 }
 
+/**
+ * contenteditable 이 만든 줄바꿈 없는 공백(U+00A0)을 보통 공백으로 되돌린다.
+ *
+ * 브라우저는 편집 중 공백을 NBSP 로 바꿔 넣는다. 그대로 저장하면 그 지점에서
+ * 줄바꿈이 되지 않고, 평문 기반인 목록 발췌·검색(마이그 443 의 strpos)·금칙어
+ * 검사가 눈에 안 보이는 공백 차이로 어긋난다.
+ *
+ * **정규식에 NBSP 를 글자 그대로 쓰지 않는다.** 원래 그렇게 쓰여 있었는데
+ * 어느 레이아웃 커밋이 양쪽을 평범한 공백으로 바꿔 놓아(f293ca74, 2026-09-15)
+ * "공백을 공백으로 바꾸는" 무해해 보이는 코드가 됐고, diff 로는 보이지 않아
+ * 아무도 눈치채지 못했다. 이스케이프(\u00a0)로 적으면 그 사고가 다시 나지 않는다.
+ */
+export function normalizeText(s) {
+  return String(s == null ? '' : s).replace(/\u00a0/g, ' ');
+}
+
 export function richToPlainText(doc) {
   return doc.blocks
     .map((b) => (b.t === 'img' ? '[사진]' : b.runs.map((r) => r.text).join('')))
@@ -136,5 +152,5 @@ export const RICH_CSS = `
 `;
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.PVRich = { sanitizeRich, richToPlainText, richImagePaths, renderRichHtml, imageUrl, isValidImagePath, LIMITS, BUCKET };
+  globalThis.PVRich = { sanitizeRich, richToPlainText, richImagePaths, renderRichHtml, imageUrl, isValidImagePath, normalizeText, LIMITS, BUCKET };
 }
