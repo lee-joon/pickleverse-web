@@ -75,9 +75,9 @@
   .community-rail { border-right:1px solid var(--line-soft); padding:32px 20px 32px 0; }
   .rail-label { display:block; margin:0 12px 12px; color:var(--sub); font-size:12px; font-weight:500; }
   .tabs { display:flex; flex-direction:column; gap:4px; }
-  .tabs a { display:flex; align-items:center; min-height:44px; padding:10px 12px; font-weight:500; font-size:14px; color:var(--sub); border-radius:4px; border-left:3px solid transparent; }
-  .tabs a.on { color:var(--brand); background:var(--brand-soft); border-left-color:var(--brand); font-weight:700; }
-  .tabs a:hover { text-decoration:none; color:var(--ink); background:var(--head); }
+  .tabs a { display:flex; align-items:center; min-height:44px; padding:10px 12px; font-weight:500; font-size:14px; color:var(--sub); }
+  .tabs a.on { color:var(--brand); font-weight:700; }
+  .tabs a:hover { text-decoration:underline; text-underline-offset:5px; color:var(--ink); }
   .rail-account { display:flex; align-items:center; min-height:44px; margin-top:20px; padding:10px 15px; font-size:13px; color:var(--sub); }
   .rail-account[aria-current] { color:var(--brand); font-weight:700; }
   .board-heading { margin-bottom:24px; }
@@ -318,14 +318,16 @@
   /* 내 정보의 켜고 끄기 한 줄 — 터치 표적을 라벨 전체로 넓힌다(체크박스만 누르게 두면 모바일에서 놓친다). */
   /* 게시판 검색 — 도구줄 가운데. 좁아지면 한 줄을 통째로 차지한다. */
   .toolbar .search { display:flex; gap:var(--s2); min-width:0; width:100%; max-width:260px; justify-self:end; grid-column:3; margin:0; }
-  .toolbar > .btn { grid-column:4; min-height:44px; white-space:nowrap; }
+  .toolbar > .btn { grid-column:4; min-height:44px; white-space:nowrap; padding:8px 4px;
+                    background:transparent; border:0; border-radius:0; color:var(--brand); }
+  .toolbar > .btn:hover { text-decoration:underline; text-underline-offset:5px; filter:none; }
   .list-total { white-space:nowrap; grid-column:2; }
   /* 입력 글자 16px 은 멋이 아니라 규격이다 — 그보다 작으면 iOS 가 탭할 때 화면을
      자동 확대한다. 터치 표적 44px 과 함께 docs/hub-community-web.md 의 규약이다.
      모바일 블록의 .btn{min-height:44px} 는 특정도가 낮아 여기서 직접 적어야 이긴다. */
   .toolbar .search { position:relative; }
-  .toolbar .search input { flex:1 1 auto; min-width:0; min-height:44px; padding:8px 48px 8px 14px; font:inherit; font-size:16px;
-                           color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:4px; }
+  .toolbar .search input { flex:1 1 auto; min-width:0; min-height:44px; padding:8px 48px 8px 0; font:inherit; font-size:16px;
+                           color:var(--ink); background:transparent; border:0; border-bottom:1px solid var(--line-strong); border-radius:0; appearance:none; }
   .toolbar .search input::placeholder { color:var(--sub); }
   .toolbar .search .btn { position:absolute; right:0; top:0; min-height:44px; width:44px; padding:0; border:0; background:transparent; color:var(--sub); }
   .toolbar .search:focus-within input { border-color:var(--brand); }
