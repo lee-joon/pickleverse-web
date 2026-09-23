@@ -28,6 +28,12 @@
   // ?edit=<id> 로 들어오면 수정 모드다. 서버(hub_update_community_post)가 본인 글인지 다시 판정한다.
   var editId = (function () { try { return new URLSearchParams(location.search).get('edit'); } catch (e) { return null; } })();
   var loadedEdit = false;
+  // 같은 페이지를 새 글과 수정에 함께 쓴다 — 정적 제목은 '글쓰기'라 수정 모드면 여기서 바꾼다.
+  if (editId) {
+    var editHeading = document.querySelector('.board-heading h1');
+    if (editHeading) editHeading.textContent = '글 수정';
+    document.title = document.title.replace(/^글쓰기/, '글 수정');
+  }
 
   function $(s, r) { return (r || document).querySelector(s); }
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }

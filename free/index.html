@@ -45,7 +45,8 @@
   [hidden] { display:none !important; } /* display:flex/grid 를 준 요소도 hidden 속성이 이기게 */
   html { -webkit-text-size-adjust:100%; color-scheme:light; }
   @media (prefers-color-scheme: dark) { html { color-scheme:dark; } }
-  body { margin:0; background:var(--bg); color:var(--ink);
+  /* accent-color — 라디오·체크박스가 브라우저 기본 파랑 대신 브랜드 녹색으로 그려진다. */
+  body { margin:0; background:var(--bg); color:var(--ink); accent-color:var(--brand);
          font:14px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
          letter-spacing:0;
          font-variant-numeric:tabular-nums;
@@ -247,7 +248,9 @@
   .pv-or { text-align:center; color:var(--sub); font-size:11px; margin:10px 0 6px; }
   .pv-form { display:grid; gap:10px; }
   .pv-form label { display:grid; gap:4px; font-size:12px; color:var(--sub); font-weight:700; }
-  .pv-form input[type=text], .pv-form input[type=email], .pv-form input[type=password], .pv-form textarea { font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong); border-radius:6px; background:var(--bg); color:var(--ink); }
+  /* 입력칸은 라벨(700) 안에 있어 font:inherit 로 굵기까지 물려받는다 — 입력한 글자가 라벨처럼
+     굵게 보이지 않도록 400 으로 되돌린다(select·tel 도 같다). */
+  .pv-form input[type=text], .pv-form input[type=email], .pv-form input[type=password], .pv-form textarea { font:inherit; font-size:16px; font-weight:400; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong); border-radius:6px; background:var(--bg); color:var(--ink); }
   body:has(dialog.pv[open]) { overflow:hidden; }
   dialog.pv { max-height:calc(100dvh - 32px); overflow:auto; }
   .pv-form textarea { resize:vertical; line-height:1.6; }
@@ -321,9 +324,9 @@
   .me-card .btn { margin-top:var(--s3); }
   .me-card form.pv-form .btn { margin-top:0; }
   .me-form-sep { margin-top:var(--s4); }
-  .pv-form select { font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong);
+  .pv-form select { font:inherit; font-size:16px; font-weight:400; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong);
                     border-radius:6px; background:var(--bg); color:var(--ink); }
-  .pv-form input[type=tel] { font:inherit; font-size:16px; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong);
+  .pv-form input[type=tel] { font:inherit; font-size:16px; font-weight:400; padding:10px 12px; min-height:44px; border:1px solid var(--line-strong);
                              border-radius:6px; background:var(--bg); color:var(--ink); }
   .me-link { display:flex; flex-wrap:wrap; gap:var(--s2); align-items:center; margin-top:var(--s2); }
   .me-more { display:inline-block; margin-top:var(--s1); font-size:12px; color:var(--sub); }
@@ -447,12 +450,15 @@
   .ned-restore .lnk { color:inherit; font-weight:700; margin-left:10px; }
   @media (max-width:640px) {
     .top .wrap { min-height:64px; }
-    .ned { border-left:none; border-right:none; border-radius:0; margin:0 -12px; }
-    .ned-doc { padding:18px 14px 50px; }
+    /* 폰에서는 편집기를 화면 끝까지 붙인다. 좌우 여백이 16px 인데 -12px 만 빼서 위아래 선이
+       가장자리 4px 앞에서 끊겼다(2026-09-23). 안쪽 글자는 페이지 여백(16px) 선에 맞춘다. */
+    .ned { border-left:none; border-right:none; border-radius:0; margin:0 calc(-1 * var(--s4)); }
+    .ned-doc { padding:18px var(--s4) 50px; }
+    .ned-restore { padding:10px var(--s4); }
     .ned-doc #ed-title { font-size:22px; }
     #ed-body { min-height:300px; font-size:16px; }
     .ned-row .ico { min-width:48px; }
-    .ned-status { padding:0 14px 16px; }
+    .ned-status { padding:0 var(--s4) 16px; }
     /* 사진 도구: 화면보다 넓어지지 않게 두 줄로 접는다 */
     #ed-body figure.ed-img .ed-imgtools { left:0; right:0; transform:none; top:-84px; flex-wrap:wrap; justify-content:center; max-width:100%; }
     .ed-imgtools .sep { display:none; }
@@ -523,6 +529,9 @@
     .ned-top .draft { order:2; flex:1 0 100%; }
     .ned-top .draft:empty { display:none; }
     .ned-row select { font-size:16px; }
+    /* 도구 줄이 두 줄로 접히면 구분선이 둘째 줄 맨 앞에 홀로 남는다 — 폰에서는 간격으로만 묶는다. */
+    .ned-row .sep { display:none; }
+    .ned-row { gap:4px; }
     .ned-row { position:relative; }
     .ned-color { position:static; }
     .ned-pal { top:100%; right:10px; }
@@ -539,8 +548,8 @@
 </style>
     <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"free","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","play":"https://play.google.com/store/apps/details?id=com.pickleverse.hub","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":false,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":false};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=28d960a563"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=28d960a563" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=c58b50eef7"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=c58b50eef7" defer></script>
     
   </head>
   <body>
@@ -590,10 +599,10 @@
           <th class="num">번호</th><th class="tit">제목</th><th class="who">글쓴이</th><th class="date">작성일</th><th class="views">조회</th><th class="likes">좋아요</th>
         </tr></thead>
         <tbody id="pv-list">
-        <tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>로그인하면 여기서 바로 쓸 수 있습니다.<br /><a class="btn primary" href="https://picklehubkorea.com/free/write.html">첫 글 쓰기</a></td></tr>
+        <tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>첫 이야기를 남겨 주세요.<br /><a class="btn primary" href="https://picklehubkorea.com/free/write.html">첫 글 쓰기</a></td></tr>
         </tbody>
       </table>
-      <template id="pv-empty"><tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>로그인하면 여기서 바로 쓸 수 있습니다.<br /><a class="btn primary" href="https://picklehubkorea.com/free/write.html">첫 글 쓰기</a></td></tr></template>
+      <template id="pv-empty"><tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>첫 이야기를 남겨 주세요.<br /><a class="btn primary" href="https://picklehubkorea.com/free/write.html">첫 글 쓰기</a></td></tr></template>
 
       </main>
     </div>
