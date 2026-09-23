@@ -529,9 +529,10 @@
     .ned-top .draft { order:2; flex:1 0 100%; }
     .ned-top .draft:empty { display:none; }
     .ned-row select { font-size:16px; }
-    /* 도구 줄이 두 줄로 접히면 구분선이 둘째 줄 맨 앞에 홀로 남는다 — 폰에서는 간격으로만 묶는다. */
+    /* 도구 줄이 두 줄로 접히면 구분선이 둘째 줄 맨 앞에 홀로 남는다 — 폰에서는 간격으로만 묶는다.
+       좌우 여백은 페이지 여백(16px)과 같게 — 글자 크기 선택칸 테두리가 제목·본문 선에 맞는다. */
     .ned-row .sep { display:none; }
-    .ned-row { gap:4px; }
+    .ned-row { gap:4px; padding:6px var(--s4); }
     .ned-row { position:relative; }
     .ned-color { position:static; }
     .ned-pal { top:100%; right:10px; }
