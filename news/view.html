@@ -19,7 +19,8 @@
     
     <style>
   :root {
-    --brand:#145B37; --brand-soft:#EDF5EF; --accent:#FBE366; --accent-soft:#FFF8DF; --on-accent:#796017;
+    /* --brand·--accent 는 앱 토큰과 같은 값(머리 주석 참고). 나머지는 웹 전용 중립·틴트다. */
+    --brand:#00361A; --brand-soft:#EDF5EF; --accent:#FBE366; --accent-soft:#FFF8DF; --on-accent:#796017;
     --bg:#FFFFFF; --surface:#FFFFFF; --ink:#232629; --sub:#646A70; --line:#DDE0E3; --line-soft:#ECEEF0;
     --row-hover:#F8F9FA; --head:#F6F7F8;
     /* 컨트롤 테두리는 표 헤어라인과 용도가 다르다 — 3:1 을 넘겨야 입력창·2차 버튼의 경계가 보인다. */
@@ -31,9 +32,12 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --brand:#94C4A4; --brand-soft:#203B2A; --accent:#E3D28A; --accent-soft:#302D20; --on-accent:#F1E4B3;
+      /* 세이지 #5E9278 은 오너가 앱에서 세 번 낮춰 확정한 값이다. 이 녹색 글자가 AA(4.5:1)를
+         넘도록 짝을 맞췄다 — brand-soft 는 앱과 같은 #0F2416(4.56:1), 행 hover 는 #1E2125(4.5:1).
+         바탕 #181A1C 위에서는 4.87:1. 공지·새 글 행(accent-soft)의 댓글 수는 on-accent 로 쓴다. */
+      --brand:#5E9278; --brand-soft:#0F2416; --accent:#BCA45C; --accent-soft:#302D20; --on-accent:#F1E4B3;
       --bg:#181A1C; --surface:#181A1C; --ink:#ECEEF0; --sub:#ABB0B6; --line:#393D42; --line-soft:#2D3136;
-      --row-hover:#25292E; --head:#21252A;
+      --row-hover:#1E2125; --head:#21252A;
       --line-strong:#718276; --on-brand:#121513; --danger:#FF8278;
     }
   }
@@ -78,7 +82,7 @@
   .tabs a { display:flex; align-items:center; min-height:44px; padding:10px 12px; font-weight:500; font-size:14px; color:var(--sub); }
   .tabs a.on { color:var(--brand); font-weight:700; }
   .tabs a:hover { text-decoration:underline; text-underline-offset:5px; color:var(--ink); }
-  .rail-account { display:flex; align-items:center; min-height:44px; margin-top:20px; padding:10px 15px; font-size:13px; color:var(--sub); }
+  .rail-account { display:flex; align-items:center; min-height:44px; margin-top:20px; padding:10px 12px; font-size:13px; color:var(--sub); }
   .rail-account[aria-current] { color:var(--brand); font-weight:700; }
   .board-heading { margin-bottom:24px; }
   .board-heading h1 { margin:0; font-size:24px; font-weight:700; line-height:1.4; overflow-wrap:anywhere; }
@@ -106,8 +110,18 @@
   table.list .tit { text-align:left; overflow:hidden; }
   table.list .tit a { display:inline-block; max-width:calc(100% - 44px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; font-size:15px; font-weight:500; }
   table.list .tit .cmt { color:var(--brand); font-weight:700; font-size:12px; margin-left:5px; }
+  /* 공지·새 글 행은 노랑 틴트 위라 다크의 세이지 글자가 3.85:1 로 떨어진다 — 그 행의 금색을 쓴다. */
+  table.list tr.notice .tit .cmt, table.list tr.fresh .tit .cmt { color:var(--on-accent); }
   table.list .who { width:112px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list .who .band { display:table; margin:4px auto 0; }
+  /* 넓은 화면에서는 배지를 이름 옆 한 줄에 둔다 — 배지 있는 행만 두 줄이 되면 표 행 높이가
+     들쭉날쭉해진다. 칸을 넓히고 왼쪽 정렬해 이름 시작점도 행마다 같게 둔다. 좁은 화면(태블릿)은
+     제목 칸을 지키려고 두 줄 그대로다. 맥 글꼴 기준 내용 폭 157px — 글꼴이 더 넓으면 옆 칸을
+     침범하지 않고 배지만 다음 줄로 내려가게 줄바꿈을 연다. */
+  @media (min-width:1080px) {
+    table.list th.who, table.list td.who { width:192px; text-align:left; padding-left:16px; white-space:normal; }
+    table.list .who .band { display:inline-block; margin:0 0 0 6px; }
+  }
   table.list .date { width:76px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list .views { width:52px; text-align:center; color:var(--sub); font-size:12px; font-weight:400; white-space:nowrap; }
   table.list tr.notice td { background:var(--accent-soft); }
@@ -124,8 +138,11 @@
   @media (max-width:640px) { .paging a, .paging span { min-width:44px; height:44px; line-height:42px; } }
   .paging a:hover { text-decoration:none; border-color:var(--line); color:var(--ink); }
 
-  /* ── 글 보기 — 읽기 열(--read)로 좁힌 밴드. 표는 1040px 를 그대로 쓰므로 게시판 밀도는 그대로다. ── */
-  .view { border-bottom:1px solid var(--line); max-width:var(--read); margin:0 auto; }
+  /* ── 글 보기 — 읽기 열(--read)로 좁힌 밴드. 표는 1040px 를 그대로 쓰므로 게시판 밀도는 그대로다. ──
+     읽기 열은 가운데가 아니라 왼쪽에 붙인다 — 게시판 제목(h1)이 본문 영역 왼쪽에 있어서, 가운데에
+     두면 제목과 본문의 시작선이 134px 어긋난다(2026-09-23). 본문·링크·목록 버튼·댓글은 모두
+     좌우 여백 0 으로 같은 선에서 시작한다(개편 때 제목·본문만 0 이 되어 16px 어긋났었다). */
+  .view { border-bottom:1px solid var(--line); max-width:var(--read); margin:0; }
   .view .head { padding:12px 0 24px; border-bottom:1px solid var(--line-soft); }
   .view .head .badge { display:inline-block; font-size:11px; font-weight:700; color:var(--on-accent); background:var(--accent-soft); padding:2px 7px; border-radius:4px; margin-right:6px; vertical-align:2px; }
   .view h2 { margin:0 0 var(--s2); font-size:28px; font-weight:700; line-height:1.5; letter-spacing:0; text-wrap:balance; overflow-wrap:anywhere; }
@@ -133,9 +150,9 @@
   .view .meta b { color:var(--ink); font-weight:500; }
   .view .body { padding:32px 0 40px; font-size:17px; line-height:1.9; overflow-wrap:anywhere; }
   .view .body p { margin:0 0 var(--s4); }
-  .view .link { padding:0 var(--s4) var(--s4); font-size:13px; }
+  .view .link { padding:0 0 var(--s4); font-size:13px; }
   .view .link a { color:var(--brand); font-weight:700; overflow-wrap:anywhere; }
-  .view .foot { display:flex; justify-content:space-between; align-items:center; gap:var(--s3); padding:var(--s3) var(--s4); border-top:1px solid var(--line-soft); }
+  .view .foot { display:flex; justify-content:space-between; align-items:center; gap:var(--s3); padding:var(--s3) 0; border-top:1px solid var(--line-soft); }
   .view .foot:empty { display:none; }
   /* 글 작업 버튼(수정·삭제·상단 고정)은 한 span 안에 들어간다 — 그 안에도 같은 간격을 준다.
      안 그러면 바깥 gap 만 적용돼 셋이 딱 붙는다. */
@@ -145,12 +162,12 @@
   .btn.on { background:var(--accent-soft); border-color:var(--on-accent); color:var(--on-accent); font-weight:700; }
 
   /* ── 댓글 — 글 보기와 같은 밴드 문법(좌우 테두리 없음), 같은 좌측 기준선 ── */
-  .cmts { margin-top:var(--s6); border-top:1px solid var(--line); border-bottom:1px solid var(--line); max-width:var(--read); margin-inline:auto; }
-  .cmts .h { padding:var(--s3) var(--s4); border-bottom:1px solid var(--line-soft); font-weight:700; font-size:13px; }
+  .cmts { margin-top:var(--s6); border-top:1px solid var(--line); border-bottom:1px solid var(--line); max-width:var(--read); }
+  .cmts .h { padding:var(--s3) 0; border-bottom:1px solid var(--line-soft); font-weight:700; font-size:13px; }
   .cmts .h b { color:var(--brand); }
   .cmts ul { list-style:none; margin:0; padding:0; }
   /* 작성자 칸은 고정 92px 이 아니라 내용 기준 — 6자리 익명 코드 + 글쓴이 배지가 잘리던 자리. */
-  .cmts li { display:grid; grid-template-columns:max-content 1fr auto; gap:var(--s1) var(--s3); padding:var(--s3) var(--s4); border-bottom:1px solid var(--line-soft); align-items:baseline; }
+  .cmts li { display:grid; grid-template-columns:max-content 1fr auto; gap:var(--s1) var(--s3); padding:var(--s3) 0; border-bottom:1px solid var(--line-soft); align-items:baseline; }
   .cmts li:last-child { border-bottom:none; }
   .cmts .who { display:flex; align-items:baseline; gap:var(--s1); min-width:92px; font-weight:700; font-size:12px; color:var(--ink); white-space:nowrap; }
   .cmts .who.op { color:var(--brand); }
@@ -159,13 +176,15 @@
   .cmts .who.gone { color:var(--sub); font-weight:400; }
   .cmts .txt { font-size:14px; line-height:1.7; overflow-wrap:anywhere; }
   .cmts .txt.tomb { color:var(--sub); font-style:italic; }
-  .cmts .when { display:flex; align-items:baseline; gap:var(--s2); font-size:11px; color:var(--sub); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  /* 날짜는 늘 둘째 줄. 반응 버튼이 있는 댓글은 첫 줄 세 칸이 차서 날짜가 둘째 줄로 내려가고,
+     숨김 댓글(반응 없음)은 첫 줄 오른쪽 끝에 붙어 자리가 갈렸다. */
+  .cmts .when { grid-column:1 / -1; display:flex; align-items:baseline; gap:var(--s2); font-size:11px; color:var(--sub); white-space:nowrap; font-variant-numeric:tabular-nums; }
   .cmts .when .acts { display:flex; gap:var(--s2); }
   .cmts .when .lnk { font-size:11px; color:var(--sub); }
   .cmts .when .lnk:hover { color:var(--ink); }
   .pv-reasons { display:grid; gap:var(--s2); margin:var(--s3) 0; }
   .pv-reasons .btn { justify-content:flex-start; min-height:44px; font-weight:500; }
-  .cmts .lock { padding:var(--s4); text-align:center; color:var(--sub); font-size:13px; border-top:1px solid var(--line-soft); }
+  .cmts .lock { padding:var(--s4) 0; text-align:center; color:var(--sub); font-size:13px; border-top:1px solid var(--line-soft); }
   #pv-comment-paging { text-align:center; padding:var(--s3); font-size:13px; color:var(--sub); }
   #pv-comment-paging:empty { display:none; }
   /* 로그인하면 app.js 가 이 슬롯을 폼으로 바꾼다 — 그때는 껍데기 패딩·테두리를 걷어 이중 박스를 막는다. */
@@ -192,7 +211,11 @@
   .account-desktop { display:flex; align-items:center; gap:14px; }
   .account-name { max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.85; }
   .account-mobile { display:none; position:relative; }
-  .account-mobile summary { cursor:pointer; min-height:44px; padding:10px 12px; font-weight:700; }
+  /* 브라우저 기본 삼각형(▶) 대신 꺾쇠 하나 — 열리면 뒤집힌다. 사파리는 ::-webkit-details-marker 로만 숨는다. */
+  .account-mobile summary { list-style:none; display:flex; align-items:center; gap:6px; cursor:pointer; min-height:44px; padding:10px 8px; font-size:13px; font-weight:500; color:var(--ink); }
+  .account-mobile summary::-webkit-details-marker { display:none; }
+  .account-mobile summary::after { content:""; width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:translateY(-2px) rotate(45deg); }
+  .account-mobile[open] summary::after { transform:translateY(2px) rotate(-135deg); }
   .account-actions { position:absolute; right:0; top:48px; width:200px; display:grid; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); box-shadow:0 8px 24px #0002; }
   .top .account-actions .lnk { color:var(--ink); justify-content:flex-start; text-align:left; padding:8px 12px; }
   .account-actions .account-name { padding:8px 12px; max-width:100%; }
@@ -239,7 +262,7 @@
   .pv-check a { color:var(--brand); text-decoration:underline; }
   .pv-err { margin:0; color:var(--danger); font-size:12px; }
   .pv-note { margin:0 0 10px; color:var(--sub); font-size:12px; line-height:1.55; }
-  .pv-cform { padding:var(--s3) var(--s4); border-top:none; }
+  .pv-cform { padding:var(--s3) 0; border-top:none; }
   .pv-cform .pv-row { display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .pv-del.lnk { color:var(--danger); margin-left:var(--s2); font-size:11px; }
   .cmts .when .pv-del { text-decoration:none; }
@@ -280,7 +303,7 @@
   #pv-article:empty { min-height:120px; }
 
   /* ── 내 정보(me.html) — 읽기 열 안의 카드 목록. 앱 설정 화면의 그룹 리스트와 같은 구성 ── */
-  .me { max-width:var(--read); margin:0 auto; }
+  .me { max-width:var(--read); margin:0; } /* 글 보기와 같은 이유로 제목(h1) 선에 붙인다 */
   .me-gate { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:var(--s8) var(--s4);
              text-align:center; color:var(--sub); font-size:13px; line-height:1.9; }
   .me-gate .btn { margin-top:var(--s3); }
@@ -446,8 +469,13 @@
   }
   @media (max-width:640px) {
     .top .brand small { display:none; }
-    .top .cta, .account-desktop { display:none; }
+    .account-desktop { display:none; }
     .account-mobile { display:block; }
+    /* 폰에서도 앱 다운로드는 머리글에 남긴다 — 레일의 앱 안내가 960px 이하에서 숨으므로 이게
+       빠지면 폰에는 푸터 링크만 남는다(2026-09-23). 작게만 줄인다. 안드로이드는 app.js 가 Play 로 바꾼다. */
+    .top .wrap { gap:8px; }
+    .top .cta { padding:8px 10px; gap:4px; font-size:12px; }
+    .top .cta .ui-icon { width:14px; height:14px; }
     .top .wrap > a { flex-shrink:0; }
     .top .brand { font-size:22px; }
     .top img { width:32px; height:32px; }
@@ -487,10 +515,9 @@
     .view, .cmts { max-width:none; }
     .view h2 { font-size:24px; }
     .view .body { font-size:16px; padding:24px 0 32px; }
-    .view .head, .view .link, .view .foot, .cmts .h, .cmts li, .cmts .lock { padding-left:0; padding-right:0; }
     .cmts li { grid-template-columns:1fr auto; }
     .cmts .txt { grid-column:1 / -1; font-size:14px; }
-    .cmts .when { grid-column:1 / -1; flex-wrap:wrap; white-space:normal; }
+    .cmts .when { flex-wrap:wrap; white-space:normal; }
     .cmts .when .lnk, .rbtn { min-height:44px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; }
     .ned-top { flex-wrap:wrap; gap:8px; }
     .ned-top .draft { order:2; flex:1 0 100%; }
@@ -502,12 +529,18 @@
     dialog.pv .x { width:44px; height:44px; top:4px; right:4px; display:flex; align-items:center; justify-content:center; }
     .ed-imgtools button { min-height:44px; }
   }
+  /* 가장 좁은 폰(320px)에서 로고·계정·앱 다운로드가 한 줄에 들어가게 조금 더 줄인다. */
+  @media (max-width:360px) {
+    .top .brand { font-size:20px; }
+    .top .cta { padding:8px; }
+    .top .cta .ui-icon { display:none; }
+  }
 
 </style>
-    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":true,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":false};</script>
+    <script>window.PV={"url":"https://oxktpzblyrutfmwfnqec.supabase.co","key":"sb_publishable_FV9bh0AU-r0qsjZJCd3-fQ_uDQYSlpB","site":"https://picklehubkorea.com","board":"news","legal":"https://lee-joon.github.io/pickleverse-legal","store":"https://apps.apple.com/kr/app/picklehub-korea/id6775662062","play":"https://play.google.com/store/apps/details?id=com.pickleverse.hub","terms":"2026-09-17","privacy":"2026-09-14","oauth":["google","kakao","apple"],"dupr":{"ssoBase":"https://dupr.gg","clientKey":"ck-a794c915-8988-4ccb-fb20-9b00b04adb01"},"post":null,"view":true,"page":1,"staticIds":[],"total":0,"me":false,"duprConnect":false,"popular":false};</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous" defer></script>
-    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=59f92c33c6"></script>
-    <script src="https://picklehubkorea.com/assets/app.js?v=59f92c33c6" defer></script>
+    <script type="module" src="https://picklehubkorea.com/assets/rich.mjs?v=28d960a563"></script>
+    <script src="https://picklehubkorea.com/assets/app.js?v=28d960a563" defer></script>
     
   </head>
   <body>

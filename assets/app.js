@@ -11,7 +11,7 @@
  * is_mine 하나로만 알 수 있고, 이 스크립트는 다른 사람의 프로필을 조회하는 경로가 없다.
  *
  * 의존성: supabase-js UMD(전역 `supabase`) — 생성기가 jsDelivr 핀 버전 + SRI 로 로드한다.
- * 설정: window.PV = { url, key, site, board, post, view, page, staticIds, total, terms, privacy, legal, store, oauth }
+ * 설정: window.PV = { url, key, site, board, post, view, page, staticIds, total, terms, privacy, legal, store, play, oauth }
  */
 (function () {
   'use strict';
@@ -492,6 +492,14 @@
       '</tr>';
   }
 
+  /* 빈 목록 한 줄 — 생성기가 <template id="pv-empty"> 로 실어 둔 게시판별 문구·버튼을 그대로 쓴다.
+     여기서 문구를 따로 지으면 정적 화면과 어긋난다(2026-09-23: 빈 게시판의 '첫 글 쓰기'·
+     '자유게시판 보기' 버튼이 이 함수 자리의 공통 문구에 덮여 사라졌다). */
+  function emptyRowHtml() {
+    var t = document.getElementById('pv-empty');
+    return t ? t.innerHTML : '<tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong></td></tr>';
+  }
+
   var listRequest = 0;
   function refreshList() {
     var tbody = $('#pv-list');
@@ -505,7 +513,7 @@
         var posts = r.data.posts || [];
         if (PV.popular) {
           tbody.innerHTML = posts.length ? posts.map(function (post) { return listRowHtml(post, '–', ''); }).join('')
-            : '<tr class="empty"><td colspan="6"><strong>아직 인기글이 없습니다</strong>좋아요를 받은 글이 여기에 모입니다.</td></tr>';
+            : emptyRowHtml();
           var count = $('#pv-total'); if (count) count.textContent = posts.length;
           retimeDates(tbody);
           return;
@@ -532,7 +540,9 @@
         });
         var fresh = posts.filter(function (p) { return !staticIds[p.id]; });
         if (fresh.length === 0) {
-          if (!posts.length) tbody.innerHTML = '<tr class="empty"><td colspan="6"><strong>아직 글이 없습니다</strong>첫 이야기를 남겨 주세요.</td></tr>';
+          // 정적 빈 행이 이미 있으면 그대로 둔다. 빌드 뒤 글이 전부 지워져 행이 하나도 안
+          // 남았을 때만 같은 빈 행을 넣는다.
+          if (!posts.length && !tbody.querySelector('tr')) tbody.innerHTML = emptyRowHtml();
           return;
         }
         var empty = tbody.querySelector('tr.empty'); if (empty) empty.remove();
@@ -903,6 +913,28 @@
       sb.rpc('hub_delete_community_post', { p_post_id: postId }).then(function (r) { if (r.error) alert(msg(r.error)); else location.href = base + '/'; });
     }
   });
+
+  /* 폰 계정 메뉴(<details>)는 스스로 닫히지 않는다 — 바깥을 누르거나 Esc 를 누르면 닫는다.
+     메뉴 안을 누른 경우는 그대로 둔다(항목 동작은 위 위임 핸들러가 닫는다). 포커스가 메뉴 안에
+     있었다면 여는 버튼으로 돌려놓아 키보드 사용자가 제자리를 잃지 않게 한다. */
+  function closeAccountMenus(keep) {
+    document.querySelectorAll('.account-mobile[open]').forEach(function (d) {
+      if (keep && d.contains(keep)) return;
+      var hadFocus = d.contains(document.activeElement);
+      d.open = false;
+      if (hadFocus) { var s = d.querySelector('summary'); if (s) s.focus(); }
+    });
+  }
+  document.addEventListener('click', function (ev) { closeAccountMenus(ev.target); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeAccountMenus(null); });
+
+  /* 머리글 '앱 다운로드'의 정적 링크는 App Store 다. 안드로이드 폰에서는 Play 스토어로 바꾼다 —
+     폰 머리글에 이 링크가 다시 보이게 되면서(2026-09-23) 안드로이드 사용자를 iOS 스토어로 보내면 안 된다. */
+  function preferPlayStore(ua) {
+    if (!PV.play || !/Android/i.test(ua || '')) return;
+    document.querySelectorAll('.top .cta').forEach(function (a) { a.href = PV.play; });
+  }
+  preferPlayStore(navigator.userAgent);
 
   /* ── 비밀번호 재설정 링크로 돌아온 경우 ───────────────────────────────── */
   function openNewPassword() {
