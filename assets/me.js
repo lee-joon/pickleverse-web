@@ -35,6 +35,13 @@
     'https://dupr.gg', 'https://www.dupr.gg', 'https://mydupr.com', 'https://www.mydupr.com',
     'https://dashboard.dupr.com', 'https://uat.dupr.gg', 'https://uat.mydupr.com',
   ];
+  /* SSO 주소와 같은 환경의 출처만 받는다 — 운영 설정이면 테스트(uat) 출처는 받지 않는다
+     (2026-09-26 리뷰). 받는 창이 우리 iframe 인지(ev.source)는 따로 보지 않는다: 우리 창에 메시지를
+     보내려면 우리 창의 참조가 있어야 하고, 그 참조를 가진 DUPR 출처 창은 우리가 띄운 iframe 안뿐이다. */
+  function duprOrigins() {
+    var uat = /\/\/uat\./.test(String((PV.dupr && PV.dupr.ssoBase) || ''));
+    return DUPR_ORIGINS.filter(function (o) { return /\/\/uat\./.test(o) === uat; });
+  }
 
 
   function bootConnect() {
@@ -51,7 +58,7 @@
       function say(t) { var n = document.getElementById('dc-msg'); if (n) { n.textContent = t || ''; n.hidden = !t; } }
       window.addEventListener('message', function (ev) {
         if (handled) return;
-        if (DUPR_ORIGINS.indexOf(ev.origin) < 0) return;
+        if (duprOrigins().indexOf(ev.origin) < 0) return;
         var msg = ev.data;
         if (typeof msg === 'string') { try { msg = JSON.parse(msg); } catch (e) { return; } }
         if (!msg || !msg.userToken || !msg.refreshToken || !msg.duprId) return;
@@ -159,6 +166,35 @@
 
     /* 현재 값 — 폼이 수집하지 않는 필드까지 전부 들고 있어야 저장이 지우지 않는다. */
     var row = null, prof = null, dupr = { linked: false }, bandPref = false, myBand = null;
+
+    /** 약관·개인정보 동의 기록이 둘 다 있는가. */
+    function hasConsent(row) {
+      return !!(row && row.platform_terms_accepted_at && row.privacy_policy_accepted_at);
+    }
+    /* 저장할 값. 폼이 수집하지 않는 값(거주지·소속·동의 버전·허브 노출)은 읽어 둔 현재 값을 그대로
+       돌려보낸다 — 이 RPC 는 받은 값으로 무조건 덮어쓰므로, 빼먹으면 앱에서 채운 값이 지워진다.
+       동의는 **이미 동의한 경우에만** true 다. 이 폼에는 약관이 없어서, 동의일이 빈 회원을 여기서
+       true 로 보내면 서버가 지금 시각으로 동의를 기록한다(299) — 약관을 보지 않은 동의가 된다
+       (2026-09-26 리뷰). 동의가 없으면 저장 전에 확인 창으로 보낸다(submit 참고). */
+    function savePayload(v, row) {
+      return {
+        p_nationality_type: v.nat,
+        p_real_name: v.name,
+        p_gender: v.gender || null,
+        p_birth_year: v.birth ? Number(v.birth) : null,
+        p_phone: v.phone,
+        p_country: v.nat === 'foreign' ? 'visitor' : 'KR',
+        p_region: row.region || null,
+        p_city: row.city || null,
+        p_district: row.district || null,
+        p_affiliation_note: row.affiliation_note || null,
+        p_platform_terms_version: row.platform_terms_version || PV.terms,
+        p_platform_terms_accepted: !!row.platform_terms_accepted_at,
+        p_privacy_policy_version: row.privacy_policy_version || PV.privacy,
+        p_privacy_policy_accepted: !!row.privacy_policy_accepted_at,
+        p_hub_visibility_opt_in: !!row.hub_visibility_opt_in,
+      };
+    }
 
 
     function load() {
@@ -347,7 +383,7 @@
       }
       function onMessage(ev) {
         if (handled) return;
-        if (DUPR_ORIGINS.indexOf(ev.origin) < 0) return; // 남의 창이 쏜 토큰은 받지 않는다
+        if (duprOrigins().indexOf(ev.origin) < 0) return; // 남의 창이 쏜 토큰은 받지 않는다
         var msg = ev.data;
         if (typeof msg === 'string') { try { msg = JSON.parse(msg); } catch (e) { return; } }
         if (!msg || !msg.userToken || !msg.refreshToken || !msg.duprId) return; // SSO 결과가 아닌 잡음
@@ -434,28 +470,21 @@
       var pf = document.getElementById('me-profile');
       pf.addEventListener('submit', function (ev) {
         ev.preventDefault();
-        err(pf, ''); ok(pf, false); busy(pf, true);
-        var nat = pf.nat.value;
-        var phone = pf.phone.value.replace(/[^0-9]/g, '');
-        // 폼이 수집하지 않는 값(거주지·소속·동의 버전·허브 노출)은 읽어둔 현재 값을 그대로 돌려보낸다.
-        // 이 RPC 는 보낸 값으로 무조건 덮어쓰므로, 빼먹으면 앱에서 채운 값이 지워진다.
-        sb.rpc('complete_global_profile', {
-          p_nationality_type: nat,
-          p_real_name: pf.name.value.trim(),
-          p_gender: pf.gender.value || null,
-          p_birth_year: pf.birth.value ? Number(pf.birth.value) : null,
-          p_phone: phone,
-          p_country: nat === 'foreign' ? 'visitor' : 'KR',
-          p_region: row.region || null,
-          p_city: row.city || null,
-          p_district: row.district || null,
-          p_affiliation_note: row.affiliation_note || null,
-          p_platform_terms_version: row.platform_terms_version || PV.terms,
-          p_platform_terms_accepted: true,
-          p_privacy_policy_version: row.privacy_policy_version || PV.privacy,
-          p_privacy_policy_accepted: true,
-          p_hub_visibility_opt_in: !!row.hub_visibility_opt_in,
-        }).then(function (r) {
+        err(pf, ''); ok(pf, false);
+        if (!hasConsent(row)) {
+          // 이 폼에는 약관이 없다 — 여기서 대신 동의할 수 없으니 약관이 있는 확인 창으로 보낸다.
+          err(pf, '약관 동의 기록이 없습니다. 회원 정보 확인에서 약관에 동의한 뒤 다시 저장해 주세요.');
+          App.openProfile().then(function (done) { if (done) { loaded = true; load(); } });
+          return;
+        }
+        busy(pf, true);
+        sb.rpc('complete_global_profile', savePayload({
+          nat: pf.nat.value,
+          name: pf.name.value.trim(),
+          gender: pf.gender.value,
+          birth: pf.birth.value,
+          phone: pf.phone.value.replace(/[^0-9]/g, ''),
+        }, row)).then(function (r) {
           busy(pf, false);
           if (r.error) { err(pf, emsg(r.error)); return; }
           if (r.data) row = r.data;

@@ -59,7 +59,16 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-  function fmtFull(iso) { return String(iso || '').slice(0, 16).replace('T', ' ').replace(/-/g, '.'); }
+  /* 전체 시각 — 한국 시각 'YYYY.MM.DD HH:MM'. 생성기(pageMeta.kstFull)와 같은 규칙이라 정적
+     페이지와 하이드레이션 뒤 글자가 같다. 서버 시각은 UTC 문자열이라 잘라 쓰면 9시간 이르다
+     (2026-09-26 리뷰). 두 복사본은 communityWebBehavior.test 가 같은 입력으로 대조한다. */
+  function fmtFull(iso) {
+    var t = Date.parse(String(iso || '').replace(/(\.\d{3})\d+/, '$1'));
+    if (isNaN(t)) return '';
+    var d = new Date(t + 9 * 60 * 60 * 1000), p2 = function (n) { return ('0' + n).slice(-2); };
+    return d.getUTCFullYear() + '.' + p2(d.getUTCMonth() + 1) + '.' + p2(d.getUTCDate()) + ' ' +
+      p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes());
+  }
   /* 오늘 글이면 HH:MM, 어제까지면 MM.DD, 지난 해면 YYYY.MM.DD — 게시판 통상 규칙.
      정적 페이지는 최대 2시간 묵어서 빌드 시점의 "오늘"이 어긋날 수 있다. 그래서
      읽는 시점의 로컬 시각으로 다시 계산한다(셀의 data-at 이 원본 시각). */
@@ -367,20 +376,47 @@
   /* 열려 있는 회원정보 창과 그 창이 끝나면 부를 콜백들. 창은 하나만 뜬다 —
      ①로 대부분 막히지만, 서로 모르는 두 경로가 각각 열려 할 수 있으므로 여기서도 막는다. */
   var profileDialog = null, profileResult = null;
+  /* 이 창이 보낼 값. complete_global_profile 은 받은 값으로 통째로 덮어쓴다(299) — 이 창이 받지
+     않는 값(성별·출생연도·연락처·거주지·소속·허브 노출)은 읽어 둔 현재 값을 그대로 되돌려 보낸다.
+     me.js 와 같은 규칙이다. 빈 값을 보내면 동의일 하나만 빠진 기존 회원이 웹에 처음 들어와 이 창을
+     마칠 때 연락처 등이 조용히 지워진다(2026-09-26 리뷰). 약관은 이 창의 체크박스로 받은 동의다. */
+  var PROFILE_KEEP = 'gender,birth_year,phone,region,city,district,affiliation_note,hub_visibility_opt_in';
+  function completionPayload(nat, name, row) {
+    row = row || {};
+    return {
+      p_nationality_type: nat,
+      p_real_name: name,
+      p_gender: row.gender || null,
+      p_birth_year: row.birth_year || null,
+      p_phone: row.phone || '',
+      p_country: nat === 'domestic' ? 'KR' : 'visitor',
+      p_region: row.region || null, p_city: row.city || null, p_district: row.district || null,
+      p_affiliation_note: row.affiliation_note || null,
+      p_platform_terms_version: PV.terms,
+      p_platform_terms_accepted: true,
+      p_privacy_policy_version: PV.privacy,
+      p_privacy_policy_accepted: true,
+      p_hub_visibility_opt_in: !!row.hub_visibility_opt_in,
+    };
+  }
   function openProfile(onDone) {
     if (profileDialog) {
       if (onDone) profileResult.then(function (ok) { if (ok) onDone(); });
       return profileResult;
     }
     var scope = App.accountScope;
+    // 이미 있는 이름·국적은 채워 둔다 — 비워 두면 외국인 회원이 기본값(내국인)으로 바뀌거나
+    // 이름을 다시 쳐서 달라질 수 있다. me 는 checkProfile 이 읽은 본인 행이다.
+    var known = me || {};
+    var natNow = known.nationality_type === 'foreign' ? 'foreign' : 'domestic';
     var d = dialog(
       '<button class="x" data-x aria-label="닫기">×</button>' +
       '<h3>회원 정보 확인</h3><p class="pv-note">커뮤니티 글은 익명으로 올라가지만, 계정에는 앱과 같은 기본 정보가 필요합니다. 이름은 다른 이용자에게 표시되지 않습니다.</p>' +
       '<form class="pv-form" id="pv-profile">' +
         '<fieldset class="pv-radio"><legend>내국인 / 외국인</legend>' +
-          '<label><input type="radio" name="nat" value="domestic" checked /> 내국인</label>' +
-          '<label><input type="radio" name="nat" value="foreign" /> 외국인</label></fieldset>' +
-        '<label>이름<input name="name" type="text" autocomplete="name" maxlength="40" required /></label>' +
+          '<label><input type="radio" name="nat" value="domestic"' + (natNow === 'domestic' ? ' checked' : '') + ' /> 내국인</label>' +
+          '<label><input type="radio" name="nat" value="foreign"' + (natNow === 'foreign' ? ' checked' : '') + ' /> 외국인</label></fieldset>' +
+        '<label>이름<input name="name" type="text" autocomplete="name" maxlength="40" required value="' + esc(known.real_name || '') + '" /></label>' +
         '<label class="pv-check"><input type="checkbox" name="terms" required /> <a href="' + esc(PV.legal) + '/terms.html" target="_blank" rel="noopener">이용약관</a>에 동의합니다</label>' +
         '<label class="pv-check"><input type="checkbox" name="privacy" required /> <a href="' + esc(PV.legal) + '/privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a>에 동의합니다</label>' +
         '<p class="pv-err" hidden></p>' +
@@ -400,25 +436,17 @@
     form.addEventListener('submit', function (ev) {
       ev.preventDefault(); setErr(d, ''); busy(form, true);
       if (scope !== App.accountScope) { d.close(); return; }
-      var nat = form.nat.value;
-      sb.rpc('complete_global_profile', {
-        p_nationality_type: nat,
-        p_real_name: form.name.value.trim(),
-        p_gender: null,
-        p_birth_year: null,
-        p_phone: '',
-        p_country: nat === 'domestic' ? 'KR' : 'visitor',
-        p_region: null, p_city: null, p_district: null, p_affiliation_note: null,
-        p_platform_terms_version: PV.terms,
-        p_platform_terms_accepted: true,
-        p_privacy_policy_version: PV.privacy,
-        p_privacy_policy_accepted: true,
-        p_hub_visibility_opt_in: false,
+      var nat = form.nat.value, name = form.name.value.trim();
+      // 이 창이 받지 않는 값을 먼저 읽는다. 읽지 못하면 저장하지 않는다 — 빈 값으로 보내면 지운다.
+      sb.from('users').select(PROFILE_KEEP).eq('id', session.user.id).maybeSingle().then(function (cur) {
+        if (scope !== App.accountScope) return null;
+        if (cur.error) throw cur.error;
+        return sb.rpc('complete_global_profile', completionPayload(nat, name, cur.data));
       }).then(function (r) {
-        if (scope !== App.accountScope) return;
+        if (!r || scope !== App.accountScope) return;
         busy(form, false);
         if (r.error) { setErr(d, msg(r.error)); return; }
-        profileOk = true; me = { real_name: form.name.value.trim() }; renderAccount();
+        profileOk = true; me = { real_name: name, nationality_type: nat }; renderAccount();
         completed = true; d.close();
       }).catch(function (e) {
         busy(form, false); setErr(d, msg(e));
@@ -716,7 +744,7 @@
         '<span>조회 <b id="pv-views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</b></span>' +
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +
-      (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="noopener">' + esc(p.link_url) + '</a></div>' : '') +
+      (p.link_url ? '<div class="link">관련 링크: <a href="' + esc(p.link_url) + '" rel="ugc nofollow noopener">' + esc(p.link_url) + '</a></div>' : '') +
       '<div class="likerow"><button class="likebtn' + (p.my_reaction === 1 ? ' on' : '') + '" data-like-post' +
         ' aria-label="글 좋아요" aria-pressed="' + (p.my_reaction === 1 ? 'true' : 'false') + '" title="좋아요">' +
         PADDLE(p.my_reaction === 1) + '<b id="pv-likes">' + (p.like_count || 0) + '</b></button></div>' +

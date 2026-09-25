@@ -73,6 +73,15 @@
 
   /* ── 로그인 게이트: 페이지 자체가 문지기다 ─────────────────────────────── */
   var gate = $('#ed-gate'), form = $('#ed-form');
+  var gateMsg = $('#ed-gate-msg'), gateBtn = $('#ed-gate-login');
+  var GATE_LOGIN_TEXT = gateMsg ? gateMsg.textContent : '';
+  /* 문지기 문구 — 로그인 전이면 '로그인', 로그인했는데 회원 정보가 덜 됐으면 '회원 정보 확인'.
+     확인 창을 닫은 사람에게 로그인 버튼을 주면 이미 로그인했는데 로그인 창이 열린다(2026-09-26 리뷰). */
+  function showGate(needProfile) {
+    gate.hidden = false; form.hidden = true;
+    if (gateMsg) gateMsg.textContent = needProfile ? '회원 정보 확인을 마치면 바로 글을 쓸 수 있습니다.' : GATE_LOGIN_TEXT;
+    if (gateBtn) gateBtn.textContent = needProfile ? '회원 정보 확인' : '로그인';
+  }
   function resetEditor() {
     editorEpoch += 1;
     if (saveTimer) clearTimeout(saveTimer);
@@ -100,18 +109,20 @@
       if (!form.hidden) return;
       App.checkProfile().then(function (ok) {
         if (epoch !== editorEpoch) return;
-        if (!ok) { App.openProfile(applyGate); return; }
+        if (!ok) { showGate(true); App.openProfile(applyGate); return; }
         gate.hidden = true; form.hidden = false;
         revealSkillBand();
         if (editId) loadForEdit(); else offerRestore();
       }).catch(function (e) { if (epoch === editorEpoch) status(errText(e), true); });
     } else {
-      gate.hidden = false; form.hidden = true;
+      showGate(false);
     }
   }
   App.ready.then(applyGate);
   App.onAuth(applyGate);
-  var gateBtn = $('#ed-gate-login'); if (gateBtn) gateBtn.addEventListener('click', function () { App.openAuth('login'); });
+  if (gateBtn) gateBtn.addEventListener('click', function () {
+    if (App.session) App.openProfile(applyGate); else App.openAuth('login');
+  });
 
   /* ── 서식 도구 (styleWithCSS=false → <b><i><u><font color size> 로 남아 직렬화가 단순) ── */
   try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
