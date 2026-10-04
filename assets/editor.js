@@ -75,12 +75,24 @@
   var gate = $('#ed-gate'), form = $('#ed-form');
   var gateMsg = $('#ed-gate-msg'), gateBtn = $('#ed-gate-login');
   var GATE_LOGIN_TEXT = gateMsg ? gateMsg.textContent : '';
-  /* 문지기 문구 — 로그인 전이면 '로그인', 로그인했는데 회원 정보가 덜 됐으면 '회원 정보 확인'.
-     확인 창을 닫은 사람에게 로그인 버튼을 주면 이미 로그인했는데 로그인 창이 열린다(2026-09-26 리뷰). */
-  function showGate(needProfile) {
+  /* 문지기 문구 — 로그인 전이면 '로그인', 로그인했는데 회원 정보가 덜 됐으면 '회원 정보 확인',
+     로그인했고 회원 정보를 아직 확인하는 중이면 버튼 없이 '확인 중'. 확인 창을 닫은 사람에게 로그인
+     버튼을 주면 이미 로그인했는데 로그인 창이 열린다(2026-09-26 리뷰). 확인 중에 버튼을 주면 본인
+     정보를 모르는 채로 빈 창이 열린다(2026-09-26 검증). */
+  var GATE = {
+    login: [GATE_LOGIN_TEXT, '로그인'],
+    profile: ['회원 정보 확인을 마치면 바로 글을 쓸 수 있습니다.', '회원 정보 확인'],
+    checking: ['회원 정보를 확인하고 있습니다…', null],
+    // 읽기 실패 — 오류 문구는 문지기 안에 쓴다. #ed-status 는 숨겨진 폼 안이라 보이지 않는다.
+    error: ['회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.', '다시 시도'],
+  };
+  var gateMode = 'login';
+  function showGate(mode) {
+    gateMode = GATE[mode] ? mode : 'login';
+    var g = GATE[gateMode];
     gate.hidden = false; form.hidden = true;
-    if (gateMsg) gateMsg.textContent = needProfile ? '회원 정보 확인을 마치면 바로 글을 쓸 수 있습니다.' : GATE_LOGIN_TEXT;
-    if (gateBtn) gateBtn.textContent = needProfile ? '회원 정보 확인' : '로그인';
+    if (gateMsg) gateMsg.textContent = g[0];
+    if (gateBtn) { gateBtn.hidden = !g[1]; if (g[1]) gateBtn.textContent = g[1]; }
   }
   function resetEditor() {
     editorEpoch += 1;
@@ -107,21 +119,31 @@
     var epoch = editorEpoch;
     if (App.session) {
       if (!form.hidden) return;
+      showGate('checking');
       App.checkProfile().then(function (ok) {
         if (epoch !== editorEpoch) return;
-        if (!ok) { showGate(true); App.openProfile(applyGate); return; }
+        if (!ok) { showGate('profile'); App.openProfile(applyGate); return; }
+        status('');
         gate.hidden = true; form.hidden = false;
         revealSkillBand();
         if (editId) loadForEdit(); else offerRestore();
-      }).catch(function (e) { if (epoch === editorEpoch) status(errText(e), true); });
+      }).catch(function () {
+        // 읽지 못했다 — 막다른 '확인 중'에 두지 않고 다시 시도할 버튼을 준다(버튼이 다시 읽는다).
+        if (epoch === editorEpoch) showGate('error');
+      });
     } else {
-      showGate(false);
+      showGate('login');
     }
   }
   App.ready.then(applyGate);
   App.onAuth(applyGate);
+  /* 로그아웃 → 로그인 창. 읽기 실패 → 문지기 흐름을 처음부터 다시(확인 중 → 다시 읽기, 실패하면 다시 오류) —
+     확인 창을 바로 부르면 실패 문구가 남은 채 창이 뜨고, 느린 실패 때는 누를 때마다 경고창이 쌓였다
+     (2026-09-26 검증 3차). 회원 정보가 덜 됨 → 확인 창. */
   if (gateBtn) gateBtn.addEventListener('click', function () {
-    if (App.session) App.openProfile(applyGate); else App.openAuth('login');
+    if (!App.session) App.openAuth('login');
+    else if (gateMode === 'error') applyGate();
+    else App.openProfile(applyGate);
   });
 
   /* ── 서식 도구 (styleWithCSS=false → <b><i><u><font color size> 로 남아 직렬화가 단순) ── */
@@ -497,8 +519,13 @@
       })
       .catch(function (e) {
         if (epoch !== editorEpoch) return;
-        status(String(e && e.message) === 'Not authorized' ? '내가 쓴 글만 수정할 수 있습니다.' : errText(e), true);
-        form.hidden = true;
+        // 실패는 문지기에 보인다 — 숨긴 폼 안의 상태 줄에 쓰면 빈 화면만 남고, 탭 복귀 때 빈 '글 수정' 폼이
+        // 열렸다(2026-09-26 검증 4차). 다시 시도하면 문지기 흐름이 다시 불러온다. 남의 글이면 다시 시도할 것이 없다.
+        var denied = String(e && e.message) === 'Not authorized';
+        loadedEdit = false; status('');
+        form.hidden = true; showGate('error');
+        if (gateMsg) gateMsg.textContent = denied ? '내가 쓴 글만 수정할 수 있습니다.' : errText(e);
+        if (denied && gateBtn) gateBtn.hidden = true;
       });
   }
 

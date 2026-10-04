@@ -22,7 +22,7 @@
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
   });
   /* 편집기(editor.js) 등 다른 스크립트가 쓰는 최소 API — 세션·로그인·프로필 게이트·에러 문장. */
-  var authListeners = [], readyResolve;
+  var authListeners = [], profileListeners = [], readyResolve;
   var App = {
     sb: sb,
     get session() { return session; },
@@ -33,7 +33,10 @@
     openProfile: function (cb) { return openProfile(cb); },
     checkProfile: function () { return checkProfile(); },
     /* 저장 뒤 캐시를 버리고 다시 읽는다 — 머리글의 이름이 옛 값으로 남지 않게. */
-    refreshProfile: function () { profileOk = null; return checkProfile(); },
+    refreshProfile: function () { profileOk = null; return checkProfile().catch(function () { return false; }); },
+    /** 회원 정보 확인 창이 저장을 마치면 부른다 — 어느 경로로 열렸든(로그인 직후 자동 포함).
+        내 정보 화면이 들고 있는 동의 기록이 낡지 않게 하려고 둔다(2026-09-26 검증). */
+    onProfile: function (cb) { profileListeners.push(cb); },
     get me() { return me; },
     requireMember: function (cb) { return requireMember(cb); },
     msg: function (e) { return msg(e); },
@@ -70,18 +73,21 @@
       p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes());
   }
   /* 오늘 글이면 HH:MM, 어제까지면 MM.DD, 지난 해면 YYYY.MM.DD — 게시판 통상 규칙.
-     정적 페이지는 최대 2시간 묵어서 빌드 시점의 "오늘"이 어긋날 수 있다. 그래서
-     읽는 시점의 로컬 시각으로 다시 계산한다(셀의 data-at 이 원본 시각). */
-  function fmtList(iso) {
-    var t = Date.parse(String(iso || ''));
+     정적 페이지는 최대 2시간 묵어서 빌드 시점의 "오늘"이 어긋날 수 있다. 그래서 읽는 시점에
+     다시 계산하되(셀의 data-at 이 원본 시각) **한국 시각**으로 한다 — 글·댓글 시각(fmtFull)이
+     한국 시각이라, 목록만 보는 사람의 현지 시각이면 해외에서 둘이 어긋난다(2026-09-26 검증).
+     생성기(pageMeta.kstList)와 같은 규칙이다. now 는 테스트용. */
+  function fmtList(iso, now) {
+    var K = 9 * 60 * 60 * 1000;
+    var t = Date.parse(String(iso || '').replace(/(\.\d{3})\d+/, '$1'));
     if (isNaN(t)) return '';
-    var d = new Date(t), now = new Date();
-    var p2 = function (n) { return ('0' + n).slice(-2); };
-    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
-      return p2(d.getHours()) + ':' + p2(d.getMinutes());
+    var d = new Date(t + K), n = new Date((typeof now === 'number' ? now : Date.now()) + K);
+    var p2 = function (x) { return ('0' + x).slice(-2); };
+    if (d.getUTCFullYear() === n.getUTCFullYear() && d.getUTCMonth() === n.getUTCMonth() && d.getUTCDate() === n.getUTCDate()) {
+      return p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes());
     }
-    var md = p2(d.getMonth() + 1) + '.' + p2(d.getDate());
-    return d.getFullYear() === now.getFullYear() ? md : d.getFullYear() + '.' + md;
+    var md = p2(d.getUTCMonth() + 1) + '.' + p2(d.getUTCDate());
+    return d.getUTCFullYear() === n.getUTCFullYear() ? md : d.getUTCFullYear() + '.' + md;
   }
   function retimeDates(root) {
     (root || document).querySelectorAll('td.date[data-at]').forEach(function (td) {
@@ -347,40 +353,63 @@
   }
 
   /* ── 프로필 완성 게이트 (앱의 CompleteProfile 과 같은 RPC) ─────────────── */
-  var profileOk = null; // null=미확인, true/false
+  var profileOk = null; // null=미확인, true/false — true 만 믿는다(checkProfile)
+  /* 회원 정보가 다 됐는가 — 이름·국적·약관·개인정보 동의(me.js isComplete 와 같은 네 항목). */
+  function profileComplete(u) {
+    return !!(u && u.real_name && u.nationality_type && u.platform_terms_accepted_at && u.privacy_policy_accepted_at);
+  }
+  /* 이 계정이 '덜 됨'으로 읽힌 적이 있는가. 다시 읽어 '다 됨'이면 다른 탭·앱에서 마친 것이다. */
+  var sawIncomplete = false;
   /* 진행 중인 조회. 캐시는 **응답이 온 뒤에야** 채워지므로, 이게 없으면 부트·
      SIGNED_IN·편집기 게이트가 동시에 물어보고 **각자 창을 띄운다**(회원 정보
      확인이 두 개 겹쳐 뜨던 원인, 2026-09-18). 먼저 뜬 조회에 합류시킨다. */
   var profileCheck = null;
   function checkProfile() {
     if (!session) return Promise.resolve(false);
-    if (profileOk !== null) return Promise.resolve(profileOk);
+    // '다 됨'만 캐시를 믿는다. '덜 됨'은 매번 다시 읽는다 — 다른 탭·앱에서 이미 마쳤을 수 있고, 낡은 '덜 됨'과
+    // 옛 이름으로 확인 창을 띄우면 그쪽에서 바꾼 이름·국적을 되돌린다(탭 복귀가 창을 다시 띄움, 2026-09-26 검증 4차).
+    if (profileOk === true) return Promise.resolve(true);
     if (profileCheck) return profileCheck;
     // uid 는 아래 "계정이 바뀌었나" 비교용이다. 질의 자체는 session.user.id 를
     // 그대로 써서 "본인 행 고정" 가드(communityAnonymity.test)의 모양을 유지한다.
     var uid = session.user.id;
-    profileCheck = sb.from('users').select('nationality_type,platform_terms_accepted_at,privacy_policy_accepted_at,real_name')
+    var check = profileCheck = sb.from('users').select('nationality_type,platform_terms_accepted_at,privacy_policy_accepted_at,real_name')
       .eq('id', session.user.id).maybeSingle()
       .then(function (r) {
-        profileCheck = null;
+        // 내 조회일 때만 비운다 — 계정이 바뀐 뒤 새 계정의 조회가 이미 걸려 있으면 그 손잡이를 지우지 않는다.
+        if (profileCheck === check) profileCheck = null;
         // 조회 중에 계정이 바뀌었으면 남의 결과다 — 캐시에 넣지 않는다.
         if (!session || session.user.id !== uid) return false;
+        // 읽기 실패를 '미완성'으로 캐시하지 않는다 — 그러면 다 마친 회원에게 빈 확인 창이
+        // 뜨고(국적 기본값 내국인) 그대로 누르면 값이 바뀐다(2026-09-26 검증). 다음 호출이 다시 읽는다.
+        if (r.error) throw r.error;
         var u = r.data;
         me = u || null;
         renderAccount();
-        profileOk = !!(u && u.real_name && u.nationality_type && u.platform_terms_accepted_at && u.privacy_policy_accepted_at);
+        profileOk = profileComplete(u);
+        if (!profileOk) sawIncomplete = true;
+        else if (sawIncomplete) finishedElsewhere();
         return profileOk;
-      }, function (e) { profileCheck = null; throw e; });
+      }, function (e) { if (profileCheck === check) profileCheck = null; throw e; });
     return profileCheck;
   }
   /* 열려 있는 회원정보 창과 그 창이 끝나면 부를 콜백들. 창은 하나만 뜬다 —
      ①로 대부분 막히지만, 서로 모르는 두 경로가 각각 열려 할 수 있으므로 여기서도 막는다. */
-  var profileDialog = null, profileResult = null;
+  var profileDialog = null, profileResult = null, profileDialogDone = null;
+  /* '덜 됨'이던 회원이 다른 탭·앱에서 마친 것을 다시 읽어 알았다 — 이 탭의 화면(내 정보 잠금 등)을 풀고,
+     열려 있는 확인 창은 끝난 것으로 닫는다. 그 창을 그대로 두면 옛 이름으로 다시 제출될 수 있다. */
+  function finishedElsewhere() {
+    sawIncomplete = false;
+    profileListeners.forEach(function (cb) { try { cb(); } catch (e) {} });
+    if (profileDialog && profileDialog.open && profileDialogDone) profileDialogDone();
+  }
   /* 이 창이 보낼 값. complete_global_profile 은 받은 값으로 통째로 덮어쓴다(299) — 이 창이 받지
      않는 값(성별·출생연도·연락처·거주지·소속·허브 노출)은 읽어 둔 현재 값을 그대로 되돌려 보낸다.
      me.js 와 같은 규칙이다. 빈 값을 보내면 동의일 하나만 빠진 기존 회원이 웹에 처음 들어와 이 창을
      마칠 때 연락처 등이 조용히 지워진다(2026-09-26 리뷰). 약관은 이 창의 체크박스로 받은 동의다. */
   var PROFILE_KEEP = 'gender,birth_year,phone,region,city,district,affiliation_note,hub_visibility_opt_in';
+  // 제출할 때 읽는 값 — 되돌려 보낼 값에 더해, 창이 열린 사이 다른 곳에서 마쳤는지 볼 네 항목.
+  var SUBMIT_READ = PROFILE_KEEP + ',real_name,platform_terms_accepted_at,privacy_policy_accepted_at,nationality_type';
   function completionPayload(nat, name, row) {
     row = row || {};
     return {
@@ -399,16 +428,38 @@
       p_hub_visibility_opt_in: !!row.hub_visibility_opt_in,
     };
   }
-  function openProfile(onDone) {
-    if (profileDialog) {
+  function openProfile(onDone, fresh) {
+    // .open 까지 본다 — close() 직후에는 open 이 이미 꺼졌지만 close 이벤트(여기서 자물쇠를
+    // 푸는 곳)는 다음 틈에 온다. 그 사이에 다시 부르면 닫힌 창에 합류해 아무것도 안 뜬다.
+    if (profileDialog && profileDialog.open) {
       if (onDone) profileResult.then(function (ok) { if (ok) onDone(); });
       return profileResult;
+    }
+    // 창을 그리기 전에 본인 행을 다시 읽는다(방금 읽은 호출자만 fresh=true). 모르는 채로 그리면 이름이 비고
+    // 국적이 기본값(내국인)이라 외국인 회원이 그대로 누르면 국적이 바뀌고(2026-09-26 검증), 낡은 값으로 그리면
+    // 다른 탭·앱에서 바꾼 이름·국적을 되돌린다(검증 4차). 읽어 보니 이미 다 마친 회원이면 창을 띄우지 않고
+    // 끝난 것으로 돌려준다. 로그아웃 상태면 띄우지 않는다 — 제출할 계정이 없다.
+    if (!session) return Promise.resolve(false);
+    if (!fresh) {
+      // 읽는 사이 로그아웃하거나 계정이 바뀌면 그 결과는 지금 계정의 답이 아니다 — 띄우지 않는다
+      // (로그아웃한 사람에게 빈 확인 창이 뜨고 제출이 깨졌다, 2026-09-26 검증).
+      var readScope = App.accountScope;
+      return checkProfile().then(function (ok) {
+        if (!session || readScope !== App.accountScope) return false;
+        if (ok) { if (onDone) onDone(); return true; }
+        return openProfile(onDone, true);
+      }, function () {
+        if (!session || readScope !== App.accountScope) return false;
+        alert('회원 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        return false;
+      });
     }
     var scope = App.accountScope;
     // 이미 있는 이름·국적은 채워 둔다 — 비워 두면 외국인 회원이 기본값(내국인)으로 바뀌거나
     // 이름을 다시 쳐서 달라질 수 있다. me 는 checkProfile 이 읽은 본인 행이다.
     var known = me || {};
     var natNow = known.nationality_type === 'foreign' ? 'foreign' : 'domestic';
+    var nameNow = String(known.real_name || '').trim();
     var d = dialog(
       '<button class="x" data-x aria-label="닫기">×</button>' +
       '<h3>회원 정보 확인</h3><p class="pv-note">커뮤니티 글은 익명으로 올라가지만, 계정에는 앱과 같은 기본 정보가 필요합니다. 이름은 다른 이용자에게 표시되지 않습니다.</p>' +
@@ -428,26 +479,34 @@
     var result = new Promise(function (done) { resolve = done; });
     profileResult = result;
     if (onDone) result.then(function (ok) { if (ok) onDone(); });
+    profileDialogDone = function () { completed = true; d.close(); };
     d.addEventListener('close', function () {
-      if (profileDialog === d) { profileDialog = null; profileResult = null; }
+      if (profileDialog === d) { profileDialog = null; profileResult = null; profileDialogDone = null; }
       resolve(completed);
     });
     var form = $('#pv-profile', d);
     form.addEventListener('submit', function (ev) {
       ev.preventDefault(); setErr(d, ''); busy(form, true);
-      if (scope !== App.accountScope) { d.close(); return; }
+      if (!session || scope !== App.accountScope) { d.close(); return; }
       var nat = form.nat.value, name = form.name.value.trim();
       // 이 창이 받지 않는 값을 먼저 읽는다. 읽지 못하면 저장하지 않는다 — 빈 값으로 보내면 지운다.
-      sb.from('users').select(PROFILE_KEEP).eq('id', session.user.id).maybeSingle().then(function (cur) {
+      sb.from('users').select(SUBMIT_READ).eq('id', session.user.id).maybeSingle().then(function (cur) {
         if (scope !== App.accountScope) return null;
         if (cur.error) throw cur.error;
+        // 창이 열려 있는 사이 다른 탭·앱에서 이미 마쳤고 이 창의 이름·국적을 건드리지 않았으면 보내지 않는다 —
+        // 보내면 창을 열 때 채운 옛 값이 그쪽에서 바꾼 값을 되돌린다(검증 4차). 동의는 이미 기록돼 있다.
+        if (profileComplete(cur.data) && name === nameNow && nat === natNow) return { data: cur.data, kept: true };
         return sb.rpc('complete_global_profile', completionPayload(nat, name, cur.data));
       }).then(function (r) {
         if (!r || scope !== App.accountScope) return;
         busy(form, false);
         if (r.error) { setErr(d, msg(r.error)); return; }
-        profileOk = true; me = { real_name: name, nationality_type: nat }; renderAccount();
-        completed = true; d.close();
+        profileOk = true; sawIncomplete = false;
+        me = r.kept ? { real_name: r.data.real_name, nationality_type: r.data.nationality_type } : { real_name: name, nationality_type: nat };
+        renderAccount();
+        completed = true;
+        profileListeners.forEach(function (cb) { try { cb(); } catch (e) {} });
+        d.close();
       }).catch(function (e) {
         busy(form, false); setErr(d, msg(e));
       });
@@ -458,7 +517,8 @@
   function requireMember(cb) {
     if (!session) { openAuth('login'); return Promise.resolve(false); }
     var scope = App.accountScope;
-    return checkProfile().then(function (ok) { return ok || openProfile(); }).then(function (ok) {
+    // 읽는 사이 계정이 바뀌었으면 그 false 는 '덜 됨'이 아니라 '남의 결과'다 — 새 계정에 빈 창을 띄우지 않는다.
+    return checkProfile().then(function (ok) { return scope === App.accountScope && (ok || openProfile(null, true)); }).then(function (ok) {
       if (!ok || scope !== App.accountScope) return false;
       if (cb) cb();
       return true;
@@ -514,7 +574,9 @@
       '<td class="num">' + num + '</td>' +
       '<td class="tit"><a href="' + esc(viewUrl + '?id=' + p.id) + '">' + esc(p.title) + '</a>' + cmt + mine + '</td>' +
       '<td class="who">' + (p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0)) + skillBadge(p) + '</td>' +
-      '<td class="date" data-at="' + esc(p.published_at) + '">' + esc(fmtList(p.published_at)) + '</td>' +
+      // 정적 목록과 같은 규칙(web_published_at 이 있으면 그것). 지금 목록 RPC 는 이 필드를 주지 않아
+      // published_at 으로 떨어진다 — 글 보기(get_hub_community_post)는 준다.
+      '<td class="date" data-at="' + esc(p.web_published_at || p.published_at) + '">' + esc(fmtList(p.web_published_at || p.published_at)) + '</td>' +
       '<td class="views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</td>' +
       '<td class="likes">' + (typeof p.like_count === 'number' ? p.like_count : 0) + '</td>' +
       '</tr>';
@@ -740,7 +802,7 @@
     var who = p.author_kind === 'admin' ? '관리자' : '익명 ' + communityAlias(p.id, 0);
     art.innerHTML =
       '<div class="head">' + (p.is_pinned ? '<span class="badge">공지</span>' : '') + '<h2 style="display:inline">' + esc(p.title) + '</h2>' +
-        '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b>' + skillBadge(p) + '</span><span>작성일 <b>' + esc(fmtFull(p.published_at)) + '</b></span>' +
+        '<div class="meta" style="margin-top:8px"><span>글쓴이 <b>' + who + '</b>' + skillBadge(p) + '</span><span>작성일 <b>' + esc(fmtFull(p.web_published_at || p.published_at)) + '</b></span>' +
         '<span>조회 <b id="pv-views">' + (typeof p.view_count === 'number' ? p.view_count : 0) + '</b></span>' +
         (p.edited_at ? '<span>수정 <b>' + esc(fmtFull(p.edited_at)) + '</b></span>' : '') + '</div></div>' +
       '<div class="body rich">' + richBody(p) + '</div>' +
@@ -990,20 +1052,23 @@
     session = s || null;
     var accountChanged = previousScope !== App.accountScope;
     if (accountChanged) {
-      profileOk = null; profileCheck = null; me = null;
+      profileOk = null; profileCheck = null; me = null; sawIncomplete = false;
       if (profileDialog) profileDialog.close();
       postRequest += 1; commentsShown = [];
     }
     renderAccount();
     authListeners.forEach(function (cb) { try { cb(event); } catch (e) {} });
     if (event === 'PASSWORD_RECOVERY') openNewPassword();
-    if (event === 'SIGNED_IN') { checkProfile().then(function (ok) { if (!ok && session) openProfile(); }).catch(function () {}); }
+    if (event === 'SIGNED_IN') {
+      var signedScope = App.accountScope; // 읽는 사이 계정이 바뀌면 빈 창(이름 없음·내국인)을 새 계정에 띄우지 않는다
+      checkProfile().then(function (ok) { if (!ok && session && signedScope === App.accountScope) openProfile(null, true); }).catch(function () {});
+    }
     if (postId && accountChanged) { renderCommentForm(); checkAdmin().then(loadPost); }
   });
   sb.auth.getSession().then(function (r) {
     session = (r.data && r.data.session) || null;
     renderAccount();
-    if (session) checkProfile();
+    if (session) checkProfile().catch(function () {});
     readyResolve();
     retimeDates();
     refreshList();

@@ -171,11 +171,18 @@
     function hasConsent(row) {
       return !!(row && row.platform_terms_accepted_at && row.privacy_policy_accepted_at);
     }
+    /** 회원 정보가 다 됐는가 — app.js checkProfile 과 같은 네 항목(이름·국적·약관·개인정보 동의). */
+    function isComplete(row) {
+      return !!(row && row.real_name && row.nationality_type && hasConsent(row));
+    }
     /* 저장할 값. 폼이 수집하지 않는 값(거주지·소속·동의 버전·허브 노출)은 읽어 둔 현재 값을 그대로
        돌려보낸다 — 이 RPC 는 받은 값으로 무조건 덮어쓰므로, 빼먹으면 앱에서 채운 값이 지워진다.
        동의는 **이미 동의한 경우에만** true 다. 이 폼에는 약관이 없어서, 동의일이 빈 회원을 여기서
        true 로 보내면 서버가 지금 시각으로 동의를 기록한다(299) — 약관을 보지 않은 동의가 된다
-       (2026-09-26 리뷰). 동의가 없으면 저장 전에 확인 창으로 보낸다(submit 참고). */
+       (2026-09-26 리뷰). 폼 자체도 회원 정보가 다 된 회원에게만 열린다(render 참고). */
+    /* 저장 직전에 다시 읽는 값 — savePayload 가 행에서 가져가는 것 전부. */
+    var SAVE_READ = 'region,city,district,affiliation_note,platform_terms_version,platform_terms_accepted_at,' +
+      'privacy_policy_version,privacy_policy_accepted_at,hub_visibility_opt_in';
     function savePayload(v, row) {
       return {
         p_nationality_type: v.nat,
@@ -232,6 +239,26 @@
       return out;
     }
 
+    /* 약관 동의 카드. */
+    function consentCardInner() {
+      return '<h2>약관 동의</h2>' +
+        '<dl class="me-facts">' +
+          '<div><dt><a href="' + esc(PV.legal) + '/terms.html" target="_blank" rel="noopener">이용약관</a></dt>' +
+            '<dd>' + esc(row.platform_terms_version || '—') + ' · ' + esc(fmtDay(row.platform_terms_accepted_at)) + '</dd></div>' +
+          '<div><dt><a href="' + esc(PV.legal) + '/privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a></dt>' +
+            '<dd>' + esc(row.privacy_policy_version || '—') + ' · ' + esc(fmtDay(row.privacy_policy_accepted_at)) + '</dd></div>' +
+        '</dl>' +
+        '<p class="pv-note">회원 탈퇴는 앱의 설정 화면에서 할 수 있습니다.</p>';
+    }
+    /* 회원 정보 확인 창이 저장을 마치면(로그인 직후 자동으로 뜬 것 포함) 다시 읽어 그린다. 창이 뜨는 건
+       회원 정보가 덜 된 회원뿐이고, 그때 이 화면의 폼은 잠겨 있어(render) 입력 중인 값이 없다 — 다시
+       그려도 잃는 것이 없다. 폼을 연 채로 동의를 우회하던 이전 설계는 입력을 지우거나 옛 값을 서버에
+       되돌렸다(2026-09-26 검증 2·3차). */
+    App.onProfile(function () {
+      if (!App.session || loadedScope !== App.accountScope || isComplete(row)) return;
+      loaded = true; load();
+    });
+
     function render() {
       var email = row.email || (App.session.user && App.session.user.email) || '';
       var provs = providerList();
@@ -253,6 +280,12 @@
 
         '<section class="me-card">' +
           '<h2>회원 정보</h2>' +
+          (!isComplete(row)
+            // 회원 정보(이름·국적·약관 동의)가 덜 됐으면 폼을 열지 않는다 — 이 폼에는 약관이 없어서 여기서
+            // 저장하면 동의 없이 저장하거나 동의를 대신 기록하게 된다. 약관이 있는 확인 창을 먼저 마친다.
+            ? '<p class="pv-note" id="me-lock">회원 정보 확인(이름·국적·약관 동의)을 마치면 여기서 정보를 바꿀 수 있습니다.</p>' +
+              '<button type="button" class="btn primary" id="me-complete">회원 정보 확인</button>'
+            :
           '<p class="pv-note">앱과 같은 계정 정보입니다. 여기서 바꾸면 앱에도 바로 반영됩니다. ' +
             '이름과 연락처는 다른 이용자에게 보이지 않고, 커뮤니티 글은 그대로 익명으로 올라갑니다.</p>' +
           '<form class="pv-form" id="me-profile">' +
@@ -275,7 +308,7 @@
             '<label>연락처 (선택)<input name="phone" type="tel" inputmode="numeric" maxlength="15" placeholder="숫자만" value="' + esc(row.phone || '') + '" /></label>' +
             '<p class="pv-err" hidden></p>' +
             '<div class="me-actions"><button type="submit" class="btn primary">저장</button><span class="me-ok" hidden>저장했습니다.</span></div>' +
-          '</form>' +
+          '</form>') +
         '</section>' +
 
         '<section class="me-card">' +
@@ -309,16 +342,7 @@
           '</dl>' +
         '</section>' +
 
-        '<section class="me-card">' +
-          '<h2>약관 동의</h2>' +
-          '<dl class="me-facts">' +
-            '<div><dt><a href="' + esc(PV.legal) + '/terms.html" target="_blank" rel="noopener">이용약관</a></dt>' +
-              '<dd>' + esc(row.platform_terms_version || '—') + ' · ' + esc(fmtDay(row.platform_terms_accepted_at)) + '</dd></div>' +
-            '<div><dt><a href="' + esc(PV.legal) + '/privacy.html" target="_blank" rel="noopener">개인정보 처리방침</a></dt>' +
-              '<dd>' + esc(row.privacy_policy_version || '—') + ' · ' + esc(fmtDay(row.privacy_policy_accepted_at)) + '</dd></div>' +
-          '</dl>' +
-          '<p class="pv-note">회원 탈퇴는 앱의 설정 화면에서 할 수 있습니다.</p>' +
-        '</section>';
+        '<section class="me-card" id="me-consent">' + consentCardInner() + '</section>';
 
       wire();
     }
@@ -468,28 +492,42 @@
       if (pw) pw.addEventListener('click', changePassword);
 
       var pf = document.getElementById('me-profile');
+      var done = document.getElementById('me-complete');
+      if (done) done.addEventListener('click', function () {
+        // openProfile 은 창을 그리기 전에 다시 읽는다 — 다른 탭·앱에서 이미 마쳤으면 창 없이 true 를 돌려주고
+        // 여기서 폼을 연다(낡은 '덜 됨'과 옛 이름으로 창을 띄우면 그쪽에서 바꾼 이름·국적을 되돌린다).
+        App.openProfile().then(function (ok) { if (ok) { loaded = true; load(); } });
+      });
+      if (!pf) return;
       pf.addEventListener('submit', function (ev) {
         ev.preventDefault();
-        err(pf, ''); ok(pf, false);
-        if (!hasConsent(row)) {
-          // 이 폼에는 약관이 없다 — 여기서 대신 동의할 수 없으니 약관이 있는 확인 창으로 보낸다.
-          err(pf, '약관 동의 기록이 없습니다. 회원 정보 확인에서 약관에 동의한 뒤 다시 저장해 주세요.');
-          App.openProfile().then(function (done) { if (done) { loaded = true; load(); } });
-          return;
-        }
-        busy(pf, true);
-        sb.rpc('complete_global_profile', savePayload({
+        if (!App.session) return;
+        err(pf, ''); ok(pf, false); busy(pf, true);
+        var scope = loadedScope;
+        var v = {
           nat: pf.nat.value,
           name: pf.name.value.trim(),
           gender: pf.gender.value,
           birth: pf.birth.value,
           phone: pf.phone.value.replace(/[^0-9]/g, ''),
-        }, row)).then(function (r) {
+        };
+        // 폼에 없는 값(거주지·소속·동의·허브 노출)은 저장 직전에 다시 읽는다 — 페이지를 연 뒤 앱에서 바꿨으면
+        // 열 때 읽은 값이 그걸 되돌린다(검증 4차). 못 읽으면 저장하지 않는다.
+        sb.from('users').select(SAVE_READ).eq('id', App.session.user.id).maybeSingle().then(function (cur) {
+          if (scope !== App.accountScope) return null;
+          if (cur.error || !cur.data) throw (cur.error || new Error('no row'));
+          return sb.rpc('complete_global_profile', savePayload(v, cur.data));
+        }).then(function (r) {
+          // 저장하는 사이 계정이 바뀌었으면 그 응답(이전 계정의 행)을 지금 화면에 넣지 않는다.
+          if (!r || scope !== App.accountScope) return;
           busy(pf, false);
           if (r.error) { err(pf, emsg(r.error)); return; }
           if (r.data) row = r.data;
           ok(pf, true);
           if (App.refreshProfile) App.refreshProfile();
+        }).catch(function () {
+          if (scope !== App.accountScope) return;
+          busy(pf, false); err(pf, '회원 정보를 불러오지 못해 저장하지 않았습니다. 잠시 후 다시 시도해 주세요.');
         });
       });
 
