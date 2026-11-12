@@ -25,6 +25,7 @@ export const C = {
   primaryDark: '#2E5227',
   primarySoft: '#E6EDD3',
   primaryText: '#335A2B',
+  onPrimary: '#FFFFFF', // primary 채움 위 글자 — 밝은 브랜드 색이면 color.mjs 가 어두운 글자로 바꾼다
   ball: '#C5D84A',
   ballInk: '#2F3A00',
   accent: '#A86A00',
@@ -120,7 +121,7 @@ export const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 export const chip = (label, tone = 'muted', extra = '') => {
   const tones = {
     primary: `background:${C.primarySoft};color:${C.primaryText};border:1px solid ${C.primaryDark}`,
-    solid: `background:${C.primary};color:#fff;border:1px solid ${C.primary}`,
+    solid: `background:${C.primary};color:${C.onPrimary};border:1px solid ${C.primary}`,
     accent: `background:#F6FAD0;color:${C.ballInk};border:1px solid #E1EA8A`,
     muted: `background:rgba(0,0,0,.04);color:${C.text2};border:1px solid ${C.border}`,
     lesson: `background:${C.lessonCard};color:${C.lessonLabel};border:1px solid rgba(139,92,246,.45)`,
@@ -142,7 +143,7 @@ export const card = (inner, extra = '') => `<div class="card" style="${extra}">$
 
 export const button = (label, tone = 'primary', extra = '') => {
   const tones = {
-    primary: `background:${C.primary};color:#fff;border:1px solid ${C.primary}`,
+    primary: `background:${C.primary};color:${C.onPrimary};border:1px solid ${C.primary}`,
     ghost: `background:transparent;color:${C.text};border:1px solid ${C.border}`,
     danger: `background:transparent;color:${C.error};border:1px solid rgba(255,107,95,.45)`,
     muted: `background:rgba(0,0,0,.04);color:${C.text3};border:1px solid ${C.border}`,

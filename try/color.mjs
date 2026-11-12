@@ -34,11 +34,21 @@ const pushUntil = (start, toward, ok) => {
   return normHex(toward);
 };
 
+// 브랜드 색을 그대로 채움색으로 쓰고, 그 위 글자색(onPrimary)을 흰색/같은 색조의 진한 색 중 대비가 되는 쪽으로 고른다.
+// 밝은 색(살구·노랑 등)을 흰 글자에 맞추려고 어둡게 누르면 갈색으로 탁해진다(2026-11-12 오너 지적) — 그래서 글자 쪽을 바꾼다.
+// 흰색도 진한 글자도 4.5:1 이 안 되는 중간 밝기만 채움색을 어둡게 한다.
 export const derivePalette = (brand, bg) => {
   const dark = lum(hex2rgb(bg)) < 0.2;
-  const primary = pushUntil(brand, '#000000', (c) => contrast(c, '#FFFFFF') >= 4.5);
+  const ink = mix(brand, '#000000', 0.82); // 같은 색조의 아주 진한 색
+  let primary = normHex(brand);
+  let onPrimary = '#FFFFFF';
+  if (contrast(primary, '#FFFFFF') < 4.5) {
+    if (contrast(primary, ink) >= 4.5) onPrimary = ink;
+    else primary = pushUntil(brand, '#000000', (c) => contrast(c, '#FFFFFF') >= 4.5);
+  }
   const primaryDark = mix(primary, '#000000', 0.22);
-  const primarySoft = dark ? mix(bg, primary, 0.28) : mix(primary, '#FFFFFF', 0.87);
-  const primaryText = pushUntil(primary, dark ? '#FFFFFF' : '#000000', (c) => contrast(c, bg) >= 4.5 && contrast(c, primarySoft) >= 4.5);
-  return { primary, primaryDark, primarySoft, primaryText };
+  const primarySoft = dark ? mix(bg, brand, 0.22) : mix(brand, '#FFFFFF', 0.86);
+  // 바탕 위 강조 글자: 원래 브랜드 색에서 출발해 어두운 바탕이면 밝게, 밝은 바탕이면 진하게.
+  const primaryText = pushUntil(brand, dark ? '#FFFFFF' : '#000000', (c) => contrast(c, bg) >= 4.5 && contrast(c, primarySoft) >= 4.5);
+  return { primary, primaryDark, primarySoft, primaryText, onPrimary };
 };

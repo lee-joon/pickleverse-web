@@ -85,7 +85,7 @@ const N = ['김민준', '이서연', '박지훈', '최유진', '정하늘', '강
 // 클럽 표시 — 로고가 있으면 로고, 없으면 첫 글자
 const mark = (ctx, size = 28, radius = 8) => ctx.logo
   ? `<img src="${ctx.logo}" alt="" style="width:${size}px;height:${size}px;border-radius:${radius}px;object-fit:contain;flex:none;background:#fff">`
-  : `<div style="width:${size}px;height:${size}px;border-radius:${radius}px;background:${C.primary};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.45)}px;font-weight:900;flex:none">${esc(ctx.name.slice(0, 1) || '클')}</div>`;
+  : `<div style="width:${size}px;height:${size}px;border-radius:${radius}px;background:${C.primary};color:${C.onPrimary};display:flex;align-items:center;justify-content:center;font-size:${Math.round(size * 0.45)}px;font-weight:900;flex:none">${esc(ctx.name.slice(0, 1) || '클')}</div>`;
 const nm = (ctx) => esc(ctx.name || '우리 클럽');
 const go = (target, inner, extra = '') => `<div data-go="${target}" style="cursor:pointer;${extra}">${inner}</div>`;
 
@@ -160,7 +160,7 @@ const homeOps = (ctx) => {
     ${courtArt(e.photo, 'width:56px;height:56px;border-radius:6px;flex:none')}
     <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700"><span class="num" style="font-size:15px;color:${C.primaryText}">${e.t}</span> ${e.title}</div><div style="font-size:13px;color:${C.text2};margin-top:3px">${e.d} · ${e.place.split(' · ')[0]} · <span class="num">${e.n}/${e.max}</span>명</div>
       <div style="height:4px;border-radius:2px;background:${C.surfaceMuted};margin-top:7px;width:120px"><div style="height:4px;border-radius:2px;background:${C.primary};width:${Math.round((e.n / e.max) * 100)}%"></div></div></div>
-    <div style="height:34px;padding:0 12px;border-radius:6px;display:flex;align-items:center;font-size:13.5px;font-weight:700;${i === 0 ? `color:${C.primaryText};border:1.5px solid ${C.primary}` : `background:${C.primary};color:#fff;border:1.5px solid ${C.primary}`}">${i === 0 ? '참석 중' : state(e, ctx).full ? '대기' : '참석'}</div>
+    <div style="height:34px;padding:0 12px;border-radius:6px;display:flex;align-items:center;font-size:13.5px;font-weight:700;${i === 0 ? `color:${C.primaryText};border:1.5px solid ${C.primary}` : `background:${C.primary};color:${C.onPrimary};border:1.5px solid ${C.primary}`}">${i === 0 ? '참석 중' : state(e, ctx).full ? '대기' : '참석'}</div>
   </div>`)).join('')}
   ${band('확인할 것', `${todo.length}건`)}
   <div style="border-top:1px solid ${C.border}">
@@ -226,7 +226,7 @@ const homeQuiet = (ctx) => {
     <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:13.5px;color:${C.text2}">다음 일정 · ${next.d}요일</span><span style="font-size:13.5px;color:${C.text2}">${next.max}명 중 ${next.n}명</span></div>
     <div style="display:flex;align-items:flex-end;gap:14px;margin-top:4px"><span class="num" style="font-size:64px;font-weight:300;letter-spacing:-3px">${next.t}</span><span style="font-size:17px;padding-bottom:8px">${next.title}<br><span style="font-size:13.5px;color:${C.text2}">${next.place.split(' · ')[0]}</span></span></div>
     <div style="display:flex;align-items:center;gap:20px;margin-top:14px">
-      ${go('event:0', `<div style="height:42px;padding:0 22px;border-radius:2px;background:${C.primary};color:#fff;display:flex;align-items:center;font-size:15px;font-weight:600">참석하기</div>`)}
+      ${go('event:0', `<div style="height:42px;padding:0 22px;border-radius:2px;background:${C.primary};color:${C.onPrimary};display:flex;align-items:center;font-size:15px;font-weight:600">참석하기</div>`)}
       ${go('tab:calendar', '<span style="font-size:15px;text-decoration:underline;text-underline-offset:4px">일정 전체</span>')}
     </div>
   </div>
@@ -258,7 +258,7 @@ const calendarRental = (ctx) => {
   <div style="display:flex;gap:6px;padding:18px 20px 4px">
     ${[['16', '목'], ['17', '금'], ['18', '토'], ['19', '일'], ['20', '월'], ['21', '화'], ['22', '수']].map(([d, w]) => {
       const sel = d === '18';
-      return `<div style="flex:1;padding:8px 0 7px;border-radius:12px;text-align:center;${sel ? `background:${C.primary};color:#fff` : `color:${C.text}`}"><div style="font-size:11px;font-weight:700;${sel ? '' : `color:${C.text3}`}">${w}</div><div class="num" style="font-size:22px;margin-top:5px">${d}</div></div>`;
+      return `<div style="flex:1;padding:8px 0 7px;border-radius:12px;text-align:center;${sel ? `background:${C.primary};color:${C.onPrimary}` : `color:${C.text}`}"><div style="font-size:11px;font-weight:700;${sel ? '' : `color:${C.text3}`}">${w}</div><div class="num" style="font-size:22px;margin-top:5px">${d}</div></div>`;
     }).join('')}
   </div>
   <div class="pad" style="margin-top:8px">
@@ -285,7 +285,7 @@ const monthGrid = () => {
     const sel = d === 18;
     const dot = dots[d];
     cells.push(`<div style="height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
-      <div class="num" style="width:36px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;padding-top:3px;${sel ? `background:${C.primary};color:#fff` : `color:${dot ? C.text : C.text3}`}">${d}</div>
+      <div class="num" style="width:36px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;padding-top:3px;${sel ? `background:${C.primary};color:${C.onPrimary}` : `color:${dot ? C.text : C.text3}`}">${d}</div>
       <div style="width:4px;height:4px;border-radius:2px;background:${sel ? 'transparent' : dot === 'mine' ? C.primary : dot ? C.text3 : 'transparent'}"></div></div>`);
   }
   return `<div style="display:grid;grid-template-columns:repeat(7,1fr)">${cells.join('')}</div>`;
@@ -320,7 +320,7 @@ const calendarTab = (ctx) => screen(`
   <div style="display:flex;align-items:center;padding:8px 20px 0">
     <span class="num" style="font-size:44px">10</span><span style="font-size:17px;font-weight:700;margin-left:6px;padding-top:10px">월</span>
     <span style="flex:1"></span>
-    <div style="display:flex;gap:12px;align-items:center">${ctx.has('attendance') ? icon('userCheck', 21, C.text2) : ''}<div style="width:44px;height:44px;border-radius:16px;background:${C.primary};display:flex;align-items:center;justify-content:center">${icon('plus', 20, '#fff', 2.6)}</div></div>
+    <div style="display:flex;gap:12px;align-items:center">${ctx.has('attendance') ? icon('userCheck', 21, C.text2) : ''}<div style="width:44px;height:44px;border-radius:16px;background:${C.primary};display:flex;align-items:center;justify-content:center">${icon('plus', 20, C.onPrimary, 2.6)}</div></div>
   </div>
   ${ctx.theme === 'rental' ? calendarRental(ctx) : calendarMonth(ctx)}`, { tab: 'calendar', tabs: TABS });
 
@@ -380,7 +380,7 @@ const matchup = (ctx) => screen(`
   <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px 0">${go('back', navBtn('chevronLeft'))}<span style="font-size:16px;font-weight:700">대진표</span><span style="width:44px"></span></div>
   <div style="padding:14px 16px 0">
     <div style="display:flex;align-items:center;gap:6px;padding:5px;border-radius:18px;background:${C.surface};margin-bottom:12px">
-      ${[1, 2, 3, 4].map((r) => `<div style="flex:1;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:4px;${r === 2 ? `background:${C.primary};color:#fff` : `color:${C.text2}`}"><span style="font-size:12px;font-weight:700">라운드</span><span class="num" style="font-size:21px;padding-top:3px">${r}</span></div>`).join('')}
+      ${[1, 2, 3, 4].map((r) => `<div style="flex:1;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:4px;${r === 2 ? `background:${C.primary};color:${C.onPrimary}` : `color:${C.text2}`}"><span style="font-size:12px;font-weight:700">라운드</span><span class="num" style="font-size:21px;padding-top:3px">${r}</span></div>`).join('')}
     </div>
     ${game(ctx, '1코트', '완료', ['김민준', '정하늘'], ['박지훈', '윤서아'], '11', '7', true)}
     ${game(ctx, '2코트', '진행 중', ['이서연', '강도윤'], ['최유진', '장현우'], '9', '8')}
@@ -421,7 +421,7 @@ const chatRow = (title, sub, time, unread, kind, i, tag) => `<div style="display
     ${kind === 'admin' ? `<div class="av" style="width:46px;height:46px;border-radius:18px;background:${C.primarySoft}">${icon('shield', 20, C.primaryText)}</div>` : `<div class="av" style="width:46px;height:46px;border-radius:18px;background:${['#2E5E8C', '#7A4E9E', '#9E6A3A', '#3A7F6A'][i % 4]}">${icon('users', 20, '#EAF2FF')}</div>`}
     <div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center"><span style="font-size:15.5px;font-weight:800">${title}</span>${tag ? chip(tag, kind === 'admin' ? 'primary' : 'muted', 'height:19px;font-size:10px;padding:0 6px') : ''}</div>
     <div style="font-size:13px;color:${C.text2};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div></div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="cap3">${time}</span>${unread ? `<span style="min-width:20px;height:20px;border-radius:10px;background:${C.primary};color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px">${unread}</span>` : ''}</div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="cap3">${time}</span>${unread ? `<span style="min-width:20px;height:20px;border-radius:10px;background:${C.primary};color:${C.onPrimary};font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px">${unread}</span>` : ''}</div>
   </div>`;
 const chatTab = (ctx) => screen(`
   <div class="topbar"><div class="t" style="font-size:27px">채팅</div></div>
@@ -434,7 +434,7 @@ const bubble = (text, mine, time, name) => `
   <div style="display:flex;flex-direction:column;align-items:${mine ? 'flex-end' : 'flex-start'};margin-bottom:12px">
     ${name ? `<div style="font-size:12.5px;font-weight:800;color:${C.primaryText};margin:0 0 5px 4px">${name}</div>` : ''}
     <div style="display:flex;align-items:flex-end;gap:6px;flex-direction:${mine ? 'row-reverse' : 'row'}">
-      <div style="max-width:250px;padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.45;${mine ? `background:${C.primary};color:#fff;border-bottom-right-radius:6px` : `background:${C.surfaceSolid};border:1px solid ${C.border};border-bottom-left-radius:6px`}">${text}</div>
+      <div style="max-width:250px;padding:10px 14px;border-radius:18px;font-size:14.5px;line-height:1.45;${mine ? `background:${C.primary};color:${C.onPrimary};border-bottom-right-radius:6px` : `background:${C.surfaceSolid};border:1px solid ${C.border};border-bottom-left-radius:6px`}">${text}</div>
       <span class="cap3" style="font-size:11px">${time}</span>
     </div></div>`;
 const chatRoom = () => screen(`
