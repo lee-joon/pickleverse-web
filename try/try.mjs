@@ -100,7 +100,7 @@ const dataUrlToBlob = async (u) => (await fetch(u)).blob();
 const host = $('#phone');
 const shadow = host.attachShadow({ mode: 'open' });
 const PREVIEW_CSS = `
-  .phone{font-family:'Pretendard','Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif}
+  .phone{font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif}
   .content{overflow-y:auto;scrollbar-width:none;padding-bottom:120px}.content::-webkit-scrollbar{display:none}
   [data-tab],[data-go]{cursor:pointer}[data-tab]:focus-visible,[data-go]:focus-visible{outline:3px solid #D6E64A;outline-offset:-3px;border-radius:16px}`;
 const previewInput = () => ({ name: S.name.trim(), logo: S.logo, brand: S.brand, theme: S.theme || 'member', preset: S.preset, features: S.features });
@@ -258,7 +258,7 @@ function drawThumbs() {
     const k = el.clientWidth / 426;
     const sh = el.shadowRoot || el.attachShadow({ mode: 'open' });
     const { html, css } = renderPhone({ ...previewInput(), preset }, 'home');
-    sh.innerHTML = `<style>${css}:host{display:block;overflow:hidden}.phone{position:absolute;left:0;top:0;transform:scale(${k});transform-origin:top left;font-family:'Pretendard','Apple SD Gothic Neo',system-ui,sans-serif}</style>${html}`;
+    sh.innerHTML = `<style>${css}:host{display:block;overflow:hidden}.phone{position:absolute;left:0;top:0;transform:scale(${k});transform-origin:top left;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',system-ui,sans-serif}</style>${html}`;
     el.style.height = `${Math.round(898 * k)}px`;
   });
 }

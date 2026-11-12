@@ -216,7 +216,7 @@ export const screen = (content, opts = {}) => {
 // 기기 틀 + 화면 CSS. 원본 pageShell 의 html/body 크기는 .phone 으로 옮겼다(Shadow DOM 안에서 쓴다).
 export const kitCss = () => `
 *{box-sizing:border-box;margin:0;padding:0}
-.phone{position:relative;width:426px;height:898px;overflow:hidden;font-family:'Pretendard','Apple SD Gothic Neo',sans-serif;color:${C.text};word-break:keep-all;-webkit-font-smoothing:antialiased;letter-spacing:-.2px}
+.phone{position:relative;width:426px;height:898px;overflow:hidden;font-family:'Pretendard Variable','Pretendard','Apple SD Gothic Neo',sans-serif;color:${C.text};word-break:keep-all;-webkit-font-smoothing:antialiased;letter-spacing:-.2px}
 .device{position:absolute;left:0;top:0;width:426px;height:898px;border-radius:64px;background:#0A0B0C;box-shadow:inset 0 0 0 3px #C7CBCF,inset 0 0 0 4px #9EA3A8}
 .screen{position:absolute;left:12px;top:12px;width:402px;height:874px;border-radius:52px;overflow:hidden;background:${C.bg}}
 .screen.plain{background:${C.bg}}
@@ -238,7 +238,7 @@ export const kitCss = () => `
 .navbar{display:flex;align-items:center;height:50px;padding:0 14px;gap:8px}
 .navbar .t{flex:1;text-align:center;font-size:17px;font-weight:600}
 .card{background:${C.surface};border-radius:18px;padding:16px}
-.num{font-family:-apple-system,'SF Pro Display',system-ui,sans-serif;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.num{font-family:'Pretendard Variable','Pretendard',-apple-system,system-ui,sans-serif;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
 .hair{height:1px;background:${C.border}}
 .chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
 .btn{height:52px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;gap:8px}

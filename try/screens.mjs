@@ -284,9 +284,10 @@ const monthGrid = () => {
   for (let d = 1; d <= 31; d += 1) {
     const sel = d === 18;
     const dot = dots[d];
-    cells.push(`<div style="height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px">
-      <div class="num" style="width:36px;height:34px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;padding-top:3px;${sel ? `background:${C.primary};color:${C.onPrimary}` : `color:${dot ? C.text : C.text3}`}">${d}</div>
-      <div style="width:4px;height:4px;border-radius:2px;background:${sel ? 'transparent' : dot === 'mine' ? C.primary : dot ? C.text3 : 'transparent'}"></div></div>`);
+    // 달력 칸: 숫자 16px · 선택은 동그라미(iOS 캘린더 비율). 원본 키트의 19px·각진 상자는 칸이 커 보였다(오너 지적 2026-11-12).
+    cells.push(`<div style="height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+      <div class="num" style="width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:${sel || dot ? 600 : 500};${sel ? `background:${C.primary};color:${C.onPrimary}` : `color:${dot ? C.text : C.text3}`}">${d}</div>
+      <div style="width:5px;height:5px;border-radius:3px;background:${sel ? 'transparent' : dot === 'mine' ? C.primary : dot ? C.text3 : 'transparent'}"></div></div>`);
   }
   return `<div style="display:grid;grid-template-columns:repeat(7,1fr)">${cells.join('')}</div>`;
 };
@@ -318,7 +319,7 @@ const calendarMonth = (ctx) => {
 };
 const calendarTab = (ctx) => screen(`
   <div style="display:flex;align-items:center;padding:8px 20px 0">
-    <span class="num" style="font-size:44px">10</span><span style="font-size:17px;font-weight:700;margin-left:6px;padding-top:10px">월</span>
+    <span style="font-size:28px;font-weight:800;letter-spacing:-.5px">10월</span><span style="font-size:15px;color:${C.text3};margin-left:8px;padding-top:6px">2026</span>
     <span style="flex:1"></span>
     <div style="display:flex;gap:12px;align-items:center">${ctx.has('attendance') ? icon('userCheck', 21, C.text2) : ''}<div style="width:44px;height:44px;border-radius:16px;background:${C.primary};display:flex;align-items:center;justify-content:center">${icon('plus', 20, C.onPrimary, 2.6)}</div></div>
   </div>
