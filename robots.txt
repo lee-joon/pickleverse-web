@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
+Disallow: /try/
 Sitemap: https://picklehubkorea.com/sitemap.xml
