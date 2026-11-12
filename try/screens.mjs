@@ -32,6 +32,7 @@ export const PALETTES = {
 export const presetBrand = (preset) => PALETTES[preset].primary;
 // 카드형은 primarySoft 가 반투명이라 계산용 바탕을 따로 둔다.
 const SOLID_BG = { card: '#07090D' };
+const isDark = () => C.bg === PALETTES.card.bg;
 
 // 프리셋별 탭바 · 상태바 (screens-styles.ts flatTabBar · lightStatus)
 const flatTabBar = (border, bg, iconsOnly = false) => `
@@ -42,7 +43,8 @@ const chromeCss = (preset) => {
     .tabbar{background:rgba(22,28,40,.78);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16)}.tabbar::after{background:#fff}.tab{background:transparent!important}.edge{display:none}
     .card{border:1px solid rgba(255,255,255,.09)}`);
   if (preset === 'ops') return css(flatTabBar(C.border, '#FFFFFF') + '.tab span{font-weight:800}');
-  if (preset === 'quiet') return css(flatTabBar(C.border, '#FFFFFF', true) + `.tab[style]::after{content:'';width:5px;height:5px;border-radius:3px;background:${C.primary};margin-top:5px}`);
+  // 미니멀은 바탕과 카드가 둘 다 흰색이라 테두리로 나눈다
+  if (preset === 'quiet') return css(flatTabBar(C.border, '#FFFFFF', true) + `.card{border:1px solid ${C.border}}` + `.tab[style]::after{content:'';width:5px;height:5px;border-radius:3px;background:${C.primary};margin-top:5px}`);
   return '';
 };
 
@@ -160,7 +162,7 @@ const homeOps = (ctx) => {
     ${courtArt(e.photo, 'width:56px;height:56px;border-radius:6px;flex:none')}
     <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:700"><span class="num" style="font-size:15px;color:${C.primaryText}">${e.t}</span> ${e.title}</div><div style="font-size:13px;color:${C.text2};margin-top:3px">${e.d} · ${e.place.split(' · ')[0]} · <span class="num">${e.n}/${e.max}</span>명</div>
       <div style="height:4px;border-radius:2px;background:${C.surfaceMuted};margin-top:7px;width:120px"><div style="height:4px;border-radius:2px;background:${C.primary};width:${Math.round((e.n / e.max) * 100)}%"></div></div></div>
-    <div style="height:34px;padding:0 12px;border-radius:6px;display:flex;align-items:center;font-size:13.5px;font-weight:700;${i === 0 ? `color:${C.primaryText};border:1.5px solid ${C.primary}` : `background:${C.primary};color:${C.onPrimary};border:1.5px solid ${C.primary}`}">${i === 0 ? '참석 중' : state(e, ctx).full ? '대기' : '참석'}</div>
+    <div style="height:34px;padding:0 12px;border-radius:6px;display:flex;align-items:center;font-size:13.5px;font-weight:700;${i === 0 ? `color:${C.primaryText};border:1.5px solid ${C.primary}` : state(e, ctx).full && !(ctx.has('waitlist') && e.wait) ? `color:${C.text3};border:1.5px solid ${C.border}` : `background:${C.primary};color:${C.onPrimary};border:1.5px solid ${C.primary}`}">${i === 0 ? '참석 중' : state(e, ctx).full ? (ctx.has('waitlist') && e.wait ? '대기' : '마감') : '참석'}</div>
   </div>`)).join('')}
   ${band('확인할 것', `${todo.length}건`)}
   <div style="border-top:1px solid ${C.border}">
@@ -294,9 +296,9 @@ const monthGrid = () => {
 const dayTile = (e, i, ctx) => {
   const s = state(e, ctx);
   const lesson = e.kind === 'lesson';
-  return go(`event:${i}`, `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:${C.surface};margin-bottom:8px">
-    <div style="width:62px;height:54px;border-radius:14px;background:${lesson ? C.lessonCard : C.primarySoft};display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none">
-      <div class="num" style="font-size:21px;color:${lesson ? C.lessonLabel : C.primaryText}">${e.t}</div><div class="num" style="font-size:14px;color:${lesson ? C.lessonLabel : C.text2};margin-top:3px">${e.end}</div></div>
+  return go(`event:${i}`, `<div style="display:flex;align-items:center;gap:14px;padding:12px 14px 12px 12px;border-radius:18px;background:${C.surface};border:1px solid ${C.surface === C.bg ? C.border : 'transparent'};margin-bottom:8px">
+    <div style="width:68px;height:58px;border-radius:14px;background:${lesson ? C.lessonCard : C.primarySoft};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex:none">
+      <div class="num" style="font-size:17px;color:${lesson ? C.lessonLabel : C.primaryText}">${e.t}</div><div class="num" style="font-size:12.5px;font-weight:500;color:${lesson ? C.lessonLabel : C.text2}">${e.end}</div></div>
     <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:15.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</span>${kindChip(e, ctx)}</div>
       <div style="font-size:12.5px;color:${C.text2};margin-top:3px">${e.d}요일 · ${e.place}</div></div>
     <div style="text-align:right;flex:none"><div class="num" style="font-size:19px;color:${s.full ? C.text2 : C.primaryText}">${e.n}/${e.max}</div><div style="font-size:11px;font-weight:700;color:${s.full ? C.error : C.text2};margin-top:3px">${s.short}</div></div>
@@ -378,7 +380,7 @@ const game = (ctx, court, st, a, b, sa, sb, dupr = false) => {
     </div></div>`;
 };
 const matchup = (ctx) => screen(`
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px 0">${go('back', navBtn('chevronLeft'))}<span style="font-size:16px;font-weight:700">대진표</span><span style="width:44px"></span></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px 0">${go('back', navBtn('chevronLeft', isDark()))}<span style="font-size:16px;font-weight:700">대진표</span><span style="width:44px"></span></div>
   <div style="padding:14px 16px 0">
     <div style="display:flex;align-items:center;gap:6px;padding:5px;border-radius:18px;background:${C.surface};margin-bottom:12px">
       ${[1, 2, 3, 4].map((r) => `<div style="flex:1;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:4px;${r === 2 ? `background:${C.primary};color:${C.onPrimary}` : `color:${C.text2}`}"><span style="font-size:12px;font-weight:700">라운드</span><span class="num" style="font-size:21px;padding-top:3px">${r}</span></div>`).join('')}
@@ -419,7 +421,7 @@ const boardTab = (ctx) => {
 
 // ── 채팅(screens-b chatList · chatRoom) ─────────────────────────────────────
 const chatRow = (title, sub, time, unread, kind, i, tag) => `<div style="display:flex;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid ${C.border}">
-    ${kind === 'admin' ? `<div class="av" style="width:46px;height:46px;border-radius:18px;background:${C.primarySoft}">${icon('shield', 20, C.primaryText)}</div>` : `<div class="av" style="width:46px;height:46px;border-radius:18px;background:${['#2E5E8C', '#7A4E9E', '#9E6A3A', '#3A7F6A'][i % 4]}">${icon('users', 20, '#EAF2FF')}</div>`}
+    ${kind === 'admin' ? `<div class="av" style="width:46px;height:46px;border-radius:18px;background:${C.primarySoft}">${icon('shield', 20, C.primaryText)}</div>` : `<div class="av" style="width:46px;height:46px;border-radius:18px;background:${C.surfaceMuted};border:1px solid ${C.border}">${icon('users', 20, C.text2)}</div>`}
     <div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center"><span style="font-size:15.5px;font-weight:800">${title}</span>${tag ? chip(tag, kind === 'admin' ? 'primary' : 'muted', 'height:19px;font-size:10px;padding:0 6px') : ''}</div>
     <div style="font-size:13px;color:${C.text2};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</div></div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="cap3">${time}</span>${unread ? `<span style="min-width:20px;height:20px;border-radius:10px;background:${C.primary};color:${C.onPrimary};font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px">${unread}</span>` : ''}</div>
@@ -439,15 +441,14 @@ const bubble = (text, mine, time, name) => `
       <span class="cap3" style="font-size:11px">${time}</span>
     </div></div>`;
 const chatRoom = () => screen(`
-  <div class="navbar">${go('back', navBtn('chevronLeft'))}<div class="t">관리자 문의</div><span style="width:44px"></span></div>
+  <div class="navbar">${go('back', navBtn('chevronLeft', isDark()))}<div class="t">관리자 문의</div><span style="width:44px"></span></div>
   <div class="pad">
     <div style="text-align:center;margin:6px 0 14px">${chip('오늘', 'muted')}</div>
     ${bubble('안녕하세요. 이번 주 토요일 처음 가는데 패들 대여가 되나요?', true, '오전 9:58')}
     ${bubble('네, 현장에서 무료로 대여해 드려요. 시작 10분 전에 와 주세요.', false, '오전 10:03', '관리자')}
     ${bubble('다음 주 일정은 화요일로 확정됐어요.', false, '오전 10:14', '관리자')}
   </div>
-  <div style="position:absolute;left:0;right:0;bottom:0;padding:10px 14px 34px;background:${C.surfaceSolid};border-top:1px solid ${C.border};display:flex;gap:10px;align-items:center;z-index:10">${icon('image', 23, C.text2)}<div class="input" style="flex:1;height:42px;border-radius:21px">메시지 입력</div>${icon('send', 22, C.primaryText)}</div>
-  ${css('.content{bottom:86px!important}')}`);
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:10px 14px 34px;background:${C.surfaceSolid};border-top:1px solid ${C.border};display:flex;gap:10px;align-items:center;z-index:10">${icon('image', 23, C.text2)}<div class="input" style="flex:1;height:42px;border-radius:21px">메시지 입력</div>${icon('send', 22, C.primaryText)}</div>`);
 
 // ── 내 정보(screens-b profile) ───────────────────────────────────────────────
 const info = (k, v) => `<div style="display:flex;justify-content:space-between;padding:9px 0;font-size:14.5px"><span style="color:${C.text2}">${k}</span><span style="font-weight:700">${v}</span></div>`;
